@@ -3,6 +3,8 @@
 #include <cstdlib>
 #include <stdio.h>
 #include <fstream>
+#include <iostream>
+
 struct Hilo
 {
     int PC;
@@ -25,7 +27,8 @@ struct Cache
     int datos[8];
     int instrucciones[64];
 };
-class Controlador 
+
+class Controlador
 {
     public:
     Controlador();
@@ -37,7 +40,7 @@ class Controlador
     void add(); //fabian
     void addi(); //carlos
     void sub(); //carlos
-    void mul(); //roy
+    void mul( int x1, int x2, int x3 ); //roy
     void div(); //carlos 
     void lw(); //carlos
     void sw(); //fabian
@@ -45,8 +48,8 @@ class Controlador
     void bne(); //carlos
     void lr(); //roy
     void sc(); //fabian
-    void jal(); //roy
-    void jalr();//roy
+    void jal( int x1, int n ); //roy
+    void jalr( int x1, int x2, int n );//roy
     void FIN();
     void cargar_hilillos();
     
