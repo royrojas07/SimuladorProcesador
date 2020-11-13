@@ -34,19 +34,19 @@ class Controlador
     void asociar(int codigo); // para asociar los codigos de operación
     void buffer_victima();
     void cambio_contexto();
-    void add();
-    void addi();
-    void sub();
-    void mul();
-    void div();
-    void lw();
-    void sw();
-    void beq();
-    void bne();
-    void lr();
-    void sc();
-    void jal();
-    void jalr();
+    void add(); //fabian
+    void addi(); //carlos
+    void sub(); //carlos
+    void mul(); //roy
+    void div(); //carlos 
+    void lw(); //carlos
+    void sw(); //fabian
+    void beq(); //fabian
+    void bne(); //carlos
+    void lr(); //roy
+    void sc(); //fabian
+    void jal(); //roy
+    void jalr();//roy
     void FIN();
     void cargar_hilillos();
     
