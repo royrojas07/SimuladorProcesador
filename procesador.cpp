@@ -7,8 +7,8 @@ Controlador::~Controlador(){
     
 }
 
-void Controlador::add(){
-
+void Controlador::add(int x1, int x2, int x3){
+    hilos[0].registros[x1] = hilos[0].registros[x2] + hilos[0].registros[x3];
 }
 
 void Controlador::addi(int x1, int x2, int n)
@@ -37,14 +37,16 @@ void Controlador::lw(int x1, int x2, int n)
     hilos[0].registros[x1] = memoria.datos[direccion]; // x1 <- M[x2 + n]
 }
 
-void Controlador::sw()
+void Controlador::sw(int x1, int x2, int n)
 {
-
+    int direccion = hilos[0].registros[x2] + n;
+    memoria.datos[direccion] = hilos[0].registros[x1];
 }
 
-void Controlador::beq()
+void Controlador::beq(int x1, int x2, int n)
 {
-
+    if(hilos[0].registros[x1] == hilos[0].registros[x2])
+        hilos[0].PC += n*4;
 }
 
 void Controlador::bne(int x1, int x2, int n)

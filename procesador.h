@@ -37,14 +37,14 @@ class Controlador
     void asociar(int codigo, int x, int y, int z); // para asociar los codigos de operación
     void buffer_victima();
     void cambio_contexto();
-    void add(); //fabian
+    void add(int x1, int x2, int x3); //fabian
     void addi(int x1, int x2, int n); //carlos
     void sub(int x1, int x2, int x3); //carlos
     void mul( int x1, int x2, int x3 ); //roy
     void div(int x1, int x2, int x3); //carlos 
     void lw(int x1, int x2, int n); //carlos
-    void sw(); //fabian
-    void beq(); //fabian
+    void sw(int x1, int x2, int n); //fabian
+    void beq(int x1, int x2, int n); //fabian
     void bne(int x1, int x2, int n); //carlos
     void lr(); //roy
     void sc(); //fabian
