@@ -16,6 +16,14 @@ struct Hilo
     int tiempo_en_ejecucion;
 };
 
+
+struct Bloque // Roy 
+{
+    // 2 palabras
+    // # bloque
+    // estado
+};
+
 struct Memoria
 {
     int datos[96];
@@ -24,20 +32,28 @@ struct Memoria
 
 struct Cache
 {
-    int datos[8];
-    int instrucciones[64];
+    Bloque datos[4];
+    Bloque instrucciones[32]; //? Revisar si en verdad son 16 // Roy
+};
+
+
+struct Round_robin // Carlos
+{
+    int puntero_actual;
+    Hilo * hilos;
+    //metodo de sacar modulo al puntero actual // es el cambio de contexto que se encarga de esto
 };
 
 class Controlador
 {
     public:
-    Controlador(); 
-    ~Controlador();
-    void aumentar_reloj();
+    Controlador(); //Carlos
+    ~Controlador(); //Fabian
+    void aumentar_reloj(); //Aumentar reloj
     void asociar(int codigo, int x, int y, int z); // para asociar los codigos de operación
-    void buffer_victima();
-    void ejecutar_hilillo(); //? metodo que esta ejecutando el hilo actual 
-    void cambio_contexto();
+    void buffer_victima(); //Metodo que corre el hilo del buffer // complicado...
+    void ejecutar_hilillo(); //metodo que esta ejecutando el hilo actual //Complicado
+    void cambio_contexto(); // No complicado  //Carlos
     void add(int x1, int x2, int x3); //fabian
     void addi(int x1, int x2, int n); //carlos
     void sub(int x1, int x2, int x3); //carlos
@@ -51,17 +67,19 @@ class Controlador
     void sc(); //fabian
     void jal( int x1, int n ); //roy
     void jalr( int x1, int x2, int n );//roy
-    void FIN();
-    void cargar_hilos(); //? este puede ser el metodo que lea de los txt y podria ir en el constructor de Controlador
-    void init_estructuras();// podria llamarse en el constructor igualmente
+    void FIN(); 
+    void cargar_hilos(); // este puede ser el metodo que lea de los txt y podria ir en el constructor de Controlador //Fabian
+    void init_estructuras();// podria llamarse en el constructor igualmente //Carlos
+    void init_hilos(); //crea los hilos y los manda a ejecutar sus metodos respectivos //Roy
     
     
     private:
     int reloj;
     int quantum;
-    Hilo * hilos;
-    int buffer[16];
+    Bloque buffer[8];
     Memoria memoria;
+    Round_robin vector_hilos;
+
 
 };
 #endif
