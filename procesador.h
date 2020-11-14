@@ -31,11 +31,12 @@ struct Cache
 class Controlador
 {
     public:
-    Controlador();
+    Controlador(); 
     ~Controlador();
     void aumentar_reloj();
     void asociar(int codigo, int x, int y, int z); // para asociar los codigos de operación
     void buffer_victima();
+    void ejecutar_hilillo(); //? metodo que esta ejecutando el hilo actual 
     void cambio_contexto();
     void add(); //fabian
     void addi(int x1, int x2, int n); //carlos
@@ -51,7 +52,9 @@ class Controlador
     void jal( int x1, int n ); //roy
     void jalr( int x1, int x2, int n );//roy
     void FIN();
-    void cargar_hilillos();
+    void cargar_hilos(); //? este puede ser el metodo que lea de los txt y podria ir en el constructor de Controlador
+    void init_estructuras();// podria llamarse en el constructor igualmente
+    
     
     private:
     int reloj;

@@ -1,9 +1,12 @@
 #include "procesador.h"
-Controlador::Controlador(){
-    
+Controlador::Controlador()
+{
+    //cargar hilos
+    //init estructuras
 }
 
-Controlador::~Controlador(){
+Controlador::~Controlador()
+{
     
 }
 
@@ -80,7 +83,7 @@ void Controlador::FIN()
 
 }
 
-void Controlador::aumentar_reloj()
+void Controlador::aumentar_reloj() 
 {
 
 }
@@ -144,4 +147,25 @@ void Controlador::buffer_victima()
 void Controlador::cambio_contexto()
 {
 
+}
+
+void Controlador::cargar_hilos()
+{
+    //lee archivos de texto dados por el usuario
+    //conforme se leen se va cargando su contenido a la memoria de instrucciones y al arreglo de hilos.
+    // Se pide el quantum
+}
+
+void Controlador::init_estructuras()
+{
+    // memoria de datos con un 1 en cada una de las palabras
+    // caches con un 0 en cada una de las palabras y -1 en las direcciones y estados
+    // Memoria de instrucciones con 0 
+    // buffer victima con 0 y -1 en la identificacion de bloque
+    //registro de cada hilo inicializados con 0
+}
+
+void Controlador::ejecutar_hilillo()
+{
+    //el hilo que pasa en ejecucion 
 }
