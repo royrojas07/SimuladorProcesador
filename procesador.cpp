@@ -1,8 +1,9 @@
 #include "procesador.h"
 Controlador::Controlador()
 {
-    //cargar hilos
-    //init estructuras
+    cargar_hilos();
+    init_estructuras();
+    reloj = 0
 }
 
 Controlador::~Controlador()
@@ -148,7 +149,8 @@ void Controlador::buffer_victima()
 
 void Controlador::cambio_contexto()
 {
-
+    vector_hilos.puntero_actual = vector_hilos.puntero_actual % vector_hilos.longitud;
+    reloj = 0;
 }
 
 void Controlador::cargar_hilos()
@@ -160,11 +162,35 @@ void Controlador::cargar_hilos()
 
 void Controlador::init_estructuras()
 {
-    // memoria de datos con un 1 en cada una de las palabras
-    // caches con un 0 en cada una de las palabras y -1 en las direcciones y estados
-    // Memoria de instrucciones con 0 
-    // buffer victima con 0 y -1 en la identificacion de bloque
-    //registro de cada hilo inicializados con 0
+    int i;
+    for(i = 0; i < 96; ++i) 
+        memoria.datos[i] = 1; //Init de memoria de datos
+
+    for(i = 0; i < 640; ++i) 
+        memoria.instrucciones[i] = 0; //init de memoria de instrucciones
+
+    for(i = 0; i < 4; ++i)
+    {
+        //Init de cache de datos
+        cache.datos[i].palabra1 = 0;
+        cache.datos[i].palabra2 = 0;
+        cache.datos[i].num_bloq = -1;
+        cache.datos[i].estado = -1;
+    }
+    //Falta el init de cache de instrucciones con 0
+    for(i = 0; i < 8; ++i)
+    {
+        //init del buffer
+        buffer[i].palabra1 = 0;
+        buffer[i].palabra2 = 0;
+        buffer[i].num_bloq = -1;
+    }
+    for(i = 0; i < vector_hilos.longitud; ++i)
+    {
+        for(int j = 0; j < 32; ++j)
+            //Init de registros de cada hilo
+            vector_hilos.hilos[i].registros[j] = 0;
+    }
 }
 
 void Controlador::ejecutar_hilillo()

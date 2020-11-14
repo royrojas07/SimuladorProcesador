@@ -40,8 +40,8 @@ struct Cache
 struct Round_robin // Carlos
 {
     int puntero_actual;
+    int longitud;
     Hilo * hilos;
-    //metodo de sacar modulo al puntero actual // es el cambio de contexto que se encarga de esto
 };
 
 class Controlador
@@ -67,7 +67,7 @@ class Controlador
     void sc(); //fabian
     void jal( int x1, int n ); //roy
     void jalr( int x1, int x2, int n );//roy
-    void FIN(); 
+    void FIN(); // En este metodo se deberia restar la longitud del vector de hilos
     void cargar_hilos(); // este puede ser el metodo que lea de los txt y podria ir en el constructor de Controlador //Fabian
     void init_estructuras();// podria llamarse en el constructor igualmente //Carlos
     void init_hilos(); //crea los hilos y los manda a ejecutar sus metodos respectivos //Roy
@@ -78,6 +78,7 @@ class Controlador
     int quantum;
     Bloque buffer[8];
     Memoria memoria;
+    Cache cache;
     Round_robin vector_hilos;
 
 
