@@ -12,6 +12,7 @@ struct Hilo
     int instruc_ptr; // para saber desde donde empezaban las intrucciones de un hilo
     int registros[32];
     int RL;
+    int IR[4];
     int reloj_inicio; //valor del reloj cuando empezó ejecución el hilo
     int reloj_fin; //valor del reloj cuando terminó ejecución el hilo
     int tiempo_en_ejecucion;
