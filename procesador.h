@@ -46,7 +46,7 @@ class Controlador
     void sw(); //fabian
     void beq(); //fabian
     void bne(); //carlos
-    void lr(); //roy
+    void lr( int x1, int x2 ); //roy
     void sc(); //fabian
     void jal( int x1, int n ); //roy
     void jalr( int x1, int x2, int n );//roy
@@ -58,5 +58,6 @@ class Controlador
     int quantum;
     Hilo * hilos;
     int buffer[16];
+    Memoria memoria;
 };
 #endif
