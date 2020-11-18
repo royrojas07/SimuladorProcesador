@@ -3,7 +3,7 @@ Controlador::Controlador()
 {
     cargar_hilos();
     init_estructuras();
-    reloj = 0
+    reloj = 0;
 }
 
 Controlador::~Controlador()
@@ -42,7 +42,7 @@ void Controlador::lw(int x1, int x2, int n)
     hilos[0].registros[x1] = memoria.datos[direccion]; // x1 <- M[x2 + n]
 }
 
-void Controlador::sw(int x1, int x2, int n)
+void Controlador::sw(int x2, int x1, int n)
 {
     int direccion = hilos[0].registros[x2] + n;
     memoria.datos[direccion] = hilos[0].registros[x1];
@@ -68,9 +68,13 @@ void Controlador::lr( int x1, int x2 )
     //aumentar_reloj();
 }
 
-void Controlador::sc()
+void Controlador::sc(int x2, int x1, int n)
 {
-
+    if(hilos[0].RL == n+x2){
+        memoria.datos[n + x2] = hilos[0].registros[x1];
+    }else{
+        hilos[0].registros[x1]=0;
+    }
 }
 
 void Controlador::jal( int x1, int n )
@@ -161,6 +165,23 @@ void Controlador::cambio_contexto()
 
 void Controlador::cargar_hilos()
 {
+    std::string nombre_archivo; /*arreglo de nombres de archivos? preguntar como manejarlo, parametros?*/ 
+    //pedir el quantum 
+    //pedir el nombre de los archivos e ir preguntando si hay otro hilillo hasta que no haya otro hilillo(?)
+    char* linea_instruccion;
+    std::ifstream archivo_leido(nombre_archivo);
+    int puntero_memoria_instrucciones = 0;
+    //registrar el numero del puntero de memoria de instrucciones en el que empiezan las instrucciones por hilillo ****
+    while (std::getline (archivo_leido, std::string(linea_instruccion))) {
+        std::cout << linea_instruccion; // para pruebas
+        char* parte_instruccion= strtok(linea_instruccion, " ");
+        while(parte_instruccion != nullptr){
+            int parte_instruccion_int = stoi(std::string(parte_instruccion));
+            memoria.instrucciones[puntero_memoria_instrucciones] = parte_instruccion_int;
+            parte_instruccion = strtok(nullptr, " "); //si no sirve probar con NULL
+            puntero_memoria_instrucciones++;
+        }
+    }
     //lee archivos de texto dados por el usuario
     //conforme se leen se va cargando su contenido a la memoria de instrucciones y al arreglo de hilos.
     // Se pide el quantum
