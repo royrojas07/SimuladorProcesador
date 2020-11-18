@@ -23,13 +23,14 @@ struct BloqueDatos
     int palabra[2];
     int bloque;
     char estado;
+    int ultimo_uso;
 };
 
 struct BloqueInstruc
 {
     int palabra[8];
     int bloque;
-    char estado; // ? int o char
+    char estado;
 };
 
 struct Memoria
@@ -79,11 +80,12 @@ class Controlador
     void cargar_hilos(); // este puede ser el metodo que lea de los txt y podria ir en el constructor de Controlador //Fabian
     void init_estructuras();// podria llamarse en el constructor igualmente //Carlos
     void init_hilos(); //crea los hilos y los manda a ejecutar sus metodos respectivos //Roy
-    void fin_hilos(); // estaria bien asi?
+    void fin_hilos();
     
     private:
     int reloj;
     int quantum;
+    int inst_ejecutadas;
     BloqueDatos buffer[8];
     Memoria memoria;
     Cache cache;
