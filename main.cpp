@@ -3,7 +3,9 @@
 #include <stdio.h>
 
 int main(){
-    Controlador controlador; //donde mandamos a llamar a los otros hilos? en el main o dentro de controlador ?
-    
+    Controlador controlador;
+    controlador.init_hilos();
+    controlador.fin_hilos();
+
     return 0;
 };

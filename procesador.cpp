@@ -28,6 +28,7 @@ void Controlador::sub(int x1, int x2, int x3)
 void Controlador::mul( int x1, int x2, int x3 )
 {
     hilos[0].registros[x1] = hilos[0].registros[x2] * hilos[0].registros[x3];
+    aumentar_reloj();
 }
 
 void Controlador::div(int x1, int x2, int x3)
@@ -59,9 +60,12 @@ void Controlador::bne(int x1, int x2, int n)
         hilos[0].PC += n * 4; // PC <- n * 4
 }
 
-void Controlador::lr()
+void Controlador::lr( int x1, int x2 )
 {
-
+    int dir = hilos[0].registros[x2];
+    //hilos[0].registros[x1] = mem( dir ); // x1 <- M[x2]
+    hilos[0].RL = hilos[0].registros[x2]; // RL <- x2
+    //aumentar_reloj();
 }
 
 void Controlador::sc()
@@ -72,13 +76,15 @@ void Controlador::sc()
 void Controlador::jal( int x1, int n )
 {
     hilos[0].registros[x1] = hilos[0].PC; // x1 <- PC
-    hilos[0].PC += n; // PC<-PC+n
+    hilos[0].PC += n; // PC <- PC+n
+    //aumentar_reloj();
 }
 
 void Controlador::jalr( int x1, int x2, int n )
 {
     hilos[0].registros[x1] = hilos[0].PC; // x1 = PC
     hilos[0].PC = hilos[0].registros[x2] + n; // PC = x2+n
+    //aumentar_reloj();
 }
 
 void Controlador::FIN()
@@ -162,7 +168,7 @@ void Controlador::cargar_hilos()
 
 void Controlador::init_estructuras()
 {
-    int i;
+    int i, j;
     for(i = 0; i < 96; ++i) 
         memoria.datos[i] = 1; //Init de memoria de datos
 
@@ -172,18 +178,27 @@ void Controlador::init_estructuras()
     for(i = 0; i < 4; ++i)
     {
         //Init de cache de datos
-        cache.datos[i].palabra1 = 0;
-        cache.datos[i].palabra2 = 0;
-        cache.datos[i].num_bloq = -1;
+        cache.datos[i].palabra[0] = 0;
+        cache.datos[i].palabra[1] = 0;
+        cache.datos[i].bloque = -1;
         cache.datos[i].estado = -1;
     }
     //Falta el init de cache de instrucciones con 0
     for(i = 0; i < 8; ++i)
     {
+        for(j = 0; j < 8; ++j)
+        {
+            cache.instrucciones[i].palabra[j] = 0;
+        }
+        cache.instrucciones[i].bloque = -1;
+        cache.instrucciones[i].estado = -1;
+    }
+    for(i = 0; i < 8; ++i)
+    {
         //init del buffer
-        buffer[i].palabra1 = 0;
-        buffer[i].palabra2 = 0;
-        buffer[i].num_bloq = -1;
+        buffer[i].palabra[0] = 0;
+        buffer[i].palabra[1] = 0;
+        buffer[i].bloque = -1;
     }
     for(i = 0; i < vector_hilos.longitud; ++i)
     {
@@ -196,4 +211,18 @@ void Controlador::init_estructuras()
 void Controlador::ejecutar_hilillo()
 {
     //el hilo que pasa en ejecucion 
+}
+
+void Controlador::init_hilos()
+{
+    hilos[0] = std::thread( controlador );
+    hilos[1] = std::thread( ejecutar_hilillo );
+    hilos[2] = std::thread( buffer_victima );
+}
+
+void Controlador::fin_hilos()
+{
+    hilos[0].join();
+    hilos[1].join();
+    hilos[2].join();
 }
