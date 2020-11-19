@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <fstream>
 #include <iostream>
+#include <string>
+#include <sstream>
+
 //#include <pthread.h>
 
 struct Hilo
@@ -23,13 +26,14 @@ struct BloqueDatos
     int palabra[2];
     int bloque;
     char estado;
+    int ultimo_uso;
 };
 
 struct BloqueInstruc
 {
     int palabra[8];
     int bloque;
-    char estado; // ? int o char
+    char estado;
 };
 
 struct Memoria
@@ -68,22 +72,23 @@ class Controlador
     void mul( int x1, int x2, int x3 ); //roy
     void div(int x1, int x2, int x3); //carlos 
     void lw(int x1, int x2, int n); //carlos
-    void sw(int x1, int x2, int n); //fabian
+    void sw(int x2, int x1, int n); //fabian
     void beq(int x1, int x2, int n); //fabian
     void bne(int x1, int x2, int n); //carlos
     void lr( int x1, int x2 ); //roy
-    void sc(); //fabian
+    void sc(int x2, int x1, int n); //fabian
     void jal( int x1, int n ); //roy
     void jalr( int x1, int x2, int n );//roy
     void FIN(); // En este metodo se deberia restar la longitud del vector de hilos
     void cargar_hilos(); // este puede ser el metodo que lea de los txt y podria ir en el constructor de Controlador //Fabian
     void init_estructuras();// podria llamarse en el constructor igualmente //Carlos
     void init_hilos(); //crea los hilos y los manda a ejecutar sus metodos respectivos //Roy
-    void fin_hilos(); // estaria bien asi?
+    void fin_hilos();
     
     private:
     int reloj;
     int quantum;
+    int inst_ejecutadas;
     BloqueDatos buffer[8];
     Memoria memoria;
     Cache cache;
