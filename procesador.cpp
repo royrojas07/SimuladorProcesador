@@ -203,6 +203,7 @@ void Controlador::init_estructuras()
         cache.datos[i].palabra[1] = 0;
         cache.datos[i].bloque = -1;
         cache.datos[i].estado = 'I';
+        cache.datos[i].ultimo_uso = -1;
     }
     //Falta el init de cache de instrucciones con 0
     for(i = 0; i < 8; ++i)
@@ -220,6 +221,7 @@ void Controlador::init_estructuras()
         buffer[i].palabra[0] = 0;
         buffer[i].palabra[1] = 0;
         buffer[i].bloque = -1;
+        buffer[i].estado = 'L'; // L de libre o disponible
     }
     for(i = 0; i < vector_hilos.longitud; ++i)
     {
