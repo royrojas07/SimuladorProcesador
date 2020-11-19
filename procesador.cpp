@@ -159,8 +159,8 @@ void Controlador::buffer_victima()
 
 void Controlador::cambio_contexto()
 {
-    vector_hilos.puntero_actual = vector_hilos.puntero_actual % vector_hilos.longitud;
-    reloj = 0;
+    vector_hilos.puntero_actual = (vector_hilos.puntero_actual+1) % vector_hilos.longitud;
+    inst_ejecutadas = 0;
 }
 
 void Controlador::cargar_hilos()
@@ -246,7 +246,7 @@ void Controlador::init_estructuras()
         cache.datos[i].palabra[0] = 0;
         cache.datos[i].palabra[1] = 0;
         cache.datos[i].bloque = -1;
-        cache.datos[i].estado = -1;
+        cache.datos[i].estado = 'I';
     }
     //Falta el init de cache de instrucciones con 0
     for(i = 0; i < 8; ++i)
@@ -256,7 +256,7 @@ void Controlador::init_estructuras()
             cache.instrucciones[i].palabra[j] = 0;
         }
         cache.instrucciones[i].bloque = -1;
-        cache.instrucciones[i].estado = -1;
+        cache.instrucciones[i].estado = 'I';
     }
     for(i = 0; i < 8; ++i)
     {
