@@ -165,23 +165,67 @@ void Controlador::cambio_contexto()
 
 void Controlador::cargar_hilos()
 {
-    std::string nombre_archivo; /*arreglo de nombres de archivos? preguntar como manejarlo, parametros?*/ 
-    //pedir el quantum 
-    //pedir el nombre de los archivos e ir preguntando si hay otro hilillo hasta que no haya otro hilillo(?)
-    char* linea_instruccion;
-    std::ifstream archivo_leido(nombre_archivo);
-    int puntero_memoria_instrucciones = 0;
-    //registrar el numero del puntero de memoria de instrucciones en el que empiezan las instrucciones por hilillo ****
-    while (std::getline (archivo_leido, std::string(linea_instruccion))) {
-        std::cout << linea_instruccion; // para pruebas
-        char* parte_instruccion= strtok(linea_instruccion, " ");
-        while(parte_instruccion != nullptr){
-            int parte_instruccion_int = stoi(std::string(parte_instruccion));
-            memoria.instrucciones[puntero_memoria_instrucciones] = parte_instruccion_int;
-            parte_instruccion = strtok(nullptr, " "); //si no sirve probar con NULL
-            puntero_memoria_instrucciones++;
+    //pedir el quantum, ver si cambiar lo de pedir por una ventanilla 
+    std::string input = "";
+    int quantum = 0;
+    std::cout << "De cuantos ciclos de reloj va a ser el quantum? Escriba un número." << std::endl;
+    while(true){
+        getline(std::cin,input);
+        std::stringstream stream(input);
+        if(stream >> quantum)
+            break;
+        else
+            std::cout << "Número inválido, por favor trate de nuevo." <<std::endl;
+    }
+
+    std::cout << "El quantum va a ser de " << quantum << " ciclos de reloj." << std::endl;
+
+    
+    //std::string nombre_archivo; /*arreglo de nombres de archivos? preguntar como manejarlo, parametros?*/
+    
+    //pedir la cantidad de hilillos que se van a inicializar, ver si cambiar lo de pedir por una ventanilla 
+    int num_hilillos = 0;
+    int num_valido = 0;
+    std::cout << "Cuantos hilillos va a inicializar? Escriba un número." << std::endl;
+    while(!num_valido){
+        getline(std::cin,input);
+        std::stringstream stream(input);
+        if(stream >> num_hilillos)
+            num_valido = 1;
+        else
+            std::cout << "Número inválido, por favor trate de nuevo." << std::endl;
+    }
+    
+    std::cout << "Se van a inicializar " << num_hilillos << " hilillos.";
+    for(int i = 0; i < num_hilillos; i++){
+        int archivo_valido = 0;
+        while(!archivo_valido){
+            std::cout << "Escriba la ruta del archivo en donde se encuentran las instrucciones del hilillo número " << i + 1 << "." << std::endl;
+            std::getline(std::cin,input);
+            std::ifstream test(input);
+            if(!test){
+                std::cout << "Ese archivo no existe, trate de nuevo" << std::endl;
+            }
+            std::cout << "Ruta de archivo válida" << std::endl;
+            test.close();
+        }
+        char* linea_instruccion;
+        std::ifstream archivo_leido(input);
+        int puntero_memoria_instrucciones = 0;
+        //registrar el numero del puntero de memoria de instrucciones en el que empiezan las instrucciones por hilillo ****
+        while (std::getline (archivo_leido, std::string(linea_instruccion))) {
+            std::cout << linea_instruccion; // para pruebas
+            char* parte_instruccion= strtok(linea_instruccion, " ");
+            while(parte_instruccion != nullptr){
+                int parte_instruccion_int = stoi(std::string(parte_instruccion));
+                memoria.instrucciones[puntero_memoria_instrucciones] = parte_instruccion_int;
+                parte_instruccion = strtok(nullptr, " "); //si no sirve probar con NULL
+                puntero_memoria_instrucciones++;
+            }
         }
     }
+    
+    
     //lee archivos de texto dados por el usuario
     //conforme se leen se va cargando su contenido a la memoria de instrucciones y al arreglo de hilos.
     // Se pide el quantum
