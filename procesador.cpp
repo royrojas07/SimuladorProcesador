@@ -376,7 +376,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
             {
                 // se realiza la copia
                 // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
-                bloque_cache = copiar_a_cache( &buffer.buffer[bloque_buffer], 4 ); // ? aqui no hay problemas
+                bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4 ); // ? aqui no hay problemas
             }
             else // el bloque no estaba en el buffer
             {
@@ -412,7 +412,7 @@ void Controlador::cargar_de_mem_principal( int num_bloque, int * bloque_retorno 
     
 }
 
-int buscar_en_cache_datos( int num_bloque )
+int Controlador::buscar_en_cache_datos( int num_bloque )
 {
     // asociativa por conjuntos de 2 vias
     // num_bloque % cantidad_de_conjuntos
