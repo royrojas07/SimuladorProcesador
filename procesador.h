@@ -2,6 +2,7 @@
 #define PROCESADOR_H
 #include <cstdlib>
 #include <stdio.h>
+#include <string.h>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -23,19 +24,22 @@ struct Hilo
     int tiempo_en_ejecucion;
 };
 
-struct BloqueDatos
+struct Bloque
 {
-    int palabra[2];
     int bloque;
     char estado;
+    virtual ~Bloque(){}
+};
+
+struct BloqueDatos : public Bloque
+{
+    int palabra[2];
     int ultimo_uso;
 };
 
-struct BloqueInstruc
+struct BloqueInstruc : public Bloque
 {
     int palabra[8];
-    int bloque;
-    char estado;
 };
 
 struct Memoria
@@ -54,7 +58,7 @@ struct Round_robin // Carlos
 {
     int puntero_actual;
     int longitud;
-    std::vector<Hilos> hilos;
+    std::vector<Hilo> hilos;
 };
 
 struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
@@ -144,8 +148,9 @@ class Controlador
     void init_estructuras();// podria llamarse en el constructor igualmente //Carlos
     void init_hilos(); //crea los hilos y los manda a ejecutar sus metodos respectivos //Roy
     void fin_hilos();
-    void cargar( int direccion, int * palabra_retorno, char memoria='D' ); // carga de memoria
+    void cargar( int direccion, int * palabra_retorno, char='D' ); // carga de memoria
     void cargar_de_mem_principal( int num_bloque, int * bloque_retorno );
+    int copiar_a_cache( Bloque * bloque, int retraso );
 
     private:
     int reloj;

@@ -278,7 +278,7 @@ void Controlador::init_estructuras()
         //Init de cache de datos
         cache.datos[i].palabra[0] = 0;
         cache.datos[i].palabra[1] = 0;
-        cache.datos[i].num_bloque = -1;
+        cache.datos[i].bloque = -1;
         cache.datos[i].estado = 'I';
         cache.datos[i].ultimo_uso = -1;
     }
@@ -289,16 +289,16 @@ void Controlador::init_estructuras()
         {
             cache.instrucciones[i].palabra[j] = 0;
         }
-        cache.instrucciones[i].num_bloque = -1;
+        cache.instrucciones[i].bloque = -1;
         cache.instrucciones[i].estado = 'I';
     }
     for(i = 0; i < 8; ++i)
     {
         //init del buffer
-        buffer[i].palabra[0] = 0;
-        buffer[i].palabra[1] = 0;
-        buffer[i].num_bloque = -1;
-        buffer[i].estado = 'L'; // L de libre o disponible
+        buffer.buffer[i].palabra[0] = 0;
+        buffer.buffer[i].palabra[1] = 0;
+        buffer.buffer[i].bloque = -1;
+        buffer.buffer[i].estado = 'L'; // L de libre o disponible
     }
     for(i = 0; i < vector_hilos.longitud; ++i)
     {
@@ -322,14 +322,14 @@ void Controlador::ejecutar_hilillo()
         actual.PC += 4;
         // se guardan los cambios realizados al hilillo
         vector_hilos.hilos[vector_hilos.puntero_actual] = actual;
-        // se aumenta el reloj
+        // se aumenta el reloj ?
         //aumentar_reloj();
         // ? aca tendria que haber sincronizacion con hilo controlador
         // para seguir con la siguiente inst. o siguiente hilo
     }
 }
 
-void cargar( int direccion, int * palabra_retorno, char memoria='D' )
+void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
 {
     // se obtienen bloque y palabra a los que pertenece la dir. de memoria
     int num_bloque = floor(direccion/8);
@@ -343,10 +343,9 @@ void cargar( int direccion, int * palabra_retorno, char memoria='D' )
             BloqueInstruc bloque_instr;
             cargar_de_mem_principal( num_bloque, bloque_instr.palabra );
             bloque_instr.bloque = num_bloque;
-            bloque_instr.estado = 'C'; // estado compartido
-            // se reemplaza en cache de instrucciones
-            // cache.instrucciones[num_bloque%8] = bloque_instr;
-            copiar_a_cache( num_bloque, bloque_instr ); // aqui se durarian los 24 ciclos
+            bloque_instr.estado = 'C'; // estado compartido ?
+            // se copia en cache de instrucciones
+            copiar_a_cache( &bloque_instr, 24 ); // aqui se duran los 24 ciclos
         }
         // si el numero de palabra es par entonces corresponde a
         // la primer palabra de su bloque, si no, es la segunda.
@@ -369,7 +368,7 @@ void cargar( int direccion, int * palabra_retorno, char memoria='D' )
             {
                 // se realiza la copia
                 // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
-                bloque_cache = copiar_a_cache( buffer[bloque_buffer] );
+                bloque_cache = copiar_a_cache( &buffer.buffer[bloque_buffer], 4 ); // ? aqui no hay problemas
             }
             else // el bloque no estaba en el buffer
             {
@@ -377,7 +376,7 @@ void cargar( int direccion, int * palabra_retorno, char memoria='D' )
                 cargar_de_mem_principal( num_bloque, bloque_datos.palabra );
                 bloque_datos.bloque = num_bloque;
                 bloque_datos.estado = 'C'; // estado compartido
-                bloque_cache = copiar_a_cache( bloque_datos ); // aqui se durarian los 24 ciclos
+                bloque_cache = copiar_a_cache( &bloque_datos, 24 ); // aqui se durarian los 24 ciclos
             }
         }
         // acierto de lectura
@@ -389,20 +388,48 @@ void cargar( int direccion, int * palabra_retorno, char memoria='D' )
     }
 }
 
-void cargar_de_mem_principal( int num_bloque, int * bloque_retorno )
+void Controlador::cargar_de_mem_principal( int num_bloque, int * bloque_retorno )
 {
     if( num_bloque >= 48 ) // mem. de intrucciones
     {
         int bloque_instr = num_bloque - 48;
         for( int i = 0; i < 8; ++i )
-            bloque_retorno[i] = memoria[(num_bloque*8)+i];
+            bloque_retorno[i] = memoria.instrucciones[(num_bloque*8)+i];
     }
     else // mem. de datos
     {
-        bloque_retorno[0] = memoria[(num_bloque*2)];
-        bloque_retorno[1] = memoria[(num_bloque*2)+1];
+        bloque_retorno[0] = memoria.datos[(num_bloque*2)];
+        bloque_retorno[1] = memoria.datos[(num_bloque*2)+1];
     }
     
+}
+
+int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en bloque en cache donde hizo la copia
+{
+    int bloque_cache;
+    int num_bloque = bloque->bloque;
+    // asociativa o LRU?
+    // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
+    // 24 ciclos desde memoria principal
+    if( retraso == 4 ) // se copia desde buffer victima
+    {
+
+    }
+    else // se copia desde memoria principal
+    {
+        BloqueDatos * bloq_datos = dynamic_cast< BloqueDatos * >( bloque );
+        if( bloq_datos != NULL ) // se copia a cache de datos
+        {
+
+        }
+        else // se copia a cache de instrucciones
+        {
+            BloqueInstruc * bloq_instr = dynamic_cast< BloqueInstruc * >( bloque );
+            // reemplazo de mapeo directo
+            cache.instrucciones[num_bloque%8] = *bloq_instr;
+        }
+    }
+    return bloque_cache;
 }
 
 void Controlador::init_hilos()
