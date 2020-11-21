@@ -154,8 +154,36 @@ void Controlador::asociar(int codigo, int x, int y, int z) //Si no se ocupa un p
 
 void Controlador::buffer_victima()
 {
-
+    int longitud_buffer;
+    while(true)
+    {
+        if(//semaforo de que llego al buffer)
+        {
+            while(!buffer.vacio)
+            {
+                bloque_a_mem();
+            }
+        }   
+    }
 }
+
+void Controlador::bloque_a_mem()
+{
+    BloqueDatos victima = buffer.sacar();
+    int direccion;
+    for(int retrasos = 0; retrasos < 24; ++retrasos)
+    {
+        //barrera
+        if(retrasos == 23)
+        {
+            //Esto no se si lo hice bien
+            direccion = victima.bloque * 2;
+            Memoria.datos[direccion] = victima.palabra[0];
+            Memoria.datos[direccion + 1] = victima.palabra[1];
+        }
+    }        
+}
+    
 
 void Controlador::cambio_contexto()
 {
