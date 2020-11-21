@@ -10,9 +10,9 @@ Controlador::~Controlador()
 {
     
 }
-
+/*
 void Controlador::add(int x1, int x2, int x3){
-    hilos[0].registros[x1] = hilos[0].registros[x2] + hilos[0].registros[x3];
+    vector_hilos.hilos[0].registros[x1] = hilos[0].registros[x2] + hilos[0].registros[x3];
 }
 
 void Controlador::addi(int x1, int x2, int n)
@@ -94,7 +94,7 @@ void Controlador::jalr( int x1, int x2, int n )
     vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].PC; // x1 = PC
     vector_hilos.hilos[actual].PC = vector_hilos.hilos[actual].registros[x2] + n; // PC = x2+n
     //aumentar_reloj();
-}
+}*/
 
 void Controlador::FIN()
 {
@@ -107,7 +107,7 @@ void Controlador::aumentar_reloj()
 }
 
 void Controlador::asociar(int codigo, int x, int y, int z) //Si no se ocupa un parametro para un metodo se pasa un cero y no se hace nada con el 
-{
+{/*
     switch (codigo)
     {
     case 19:
@@ -154,11 +154,11 @@ void Controlador::asociar(int codigo, int x, int y, int z) //Si no se ocupa un p
         break;
     default:
         break;
-    }
+    }*/
 }
 
 void Controlador::buffer_victima()
-{
+{/*
     int longitud_buffer;
     while(true)
     {
@@ -169,12 +169,12 @@ void Controlador::buffer_victima()
                 bloque_a_mem();
             }
         }   
-    }
+    }*/
 }
 
 void Controlador::bloque_a_mem()
 {
-    BloqueDatos victima = buffer.sacar();
+    BloqueDatos victima = buffer_vic.sacar();
     int direccion;
     for(int retrasos = 0; retrasos < 24; ++retrasos)
     {
@@ -183,8 +183,8 @@ void Controlador::bloque_a_mem()
         {
             //Esto no se si lo hice bien
             direccion = victima.bloque * 2;
-            Memoria.datos[direccion] = victima.palabra[0];
-            Memoria.datos[direccion + 1] = victima.palabra[1];
+            memoria.datos[direccion] = victima.palabra[0];
+            memoria.datos[direccion + 1] = victima.palabra[1];
         }
     }        
 }
@@ -239,22 +239,32 @@ void Controlador::cargar_hilos()
             if(!test){
                 std::cout << "Ese archivo no existe, trate de nuevo" << std::endl;
             }
-            std::cout << "Ruta de archivo válida" << std::endl;
-            test.close();
+            else
+            {
+                std::cout << "Ruta de archivo válida" << std::endl;
+                archivo_valido = 1;
+                test.close();
+            }
         }
-        char* linea_instruccion;
+        std::string linea_instruccion;
         std::ifstream archivo_leido(input);
         int puntero_memoria_instrucciones = 0;
         //registrar el numero del puntero de memoria de instrucciones en el que empiezan las instrucciones por hilillo ****
-        while (std::getline (archivo_leido, std::string(linea_instruccion))) {
+        while (std::getline(archivo_leido, linea_instruccion)) {
             std::cout << linea_instruccion; // para pruebas
-            char* parte_instruccion= strtok(linea_instruccion, " ");
-            while(parte_instruccion != nullptr){
-                int parte_instruccion_int = stoi(std::string(parte_instruccion));
+            puts("todo bien aca");
+            char *cstr = new char[linea_instruccion.length() + 1];
+            strcpy(cstr, linea_instruccion.c_str());
+            char* parte_instruccion= strtok(cstr, " ");
+            
+            while(parte_instruccion != NULL){
+                puts(parte_instruccion);
+                int parte_instruccion_int = atoi(parte_instruccion);
                 memoria.instrucciones[puntero_memoria_instrucciones] = parte_instruccion_int;
-                parte_instruccion = strtok(nullptr, " "); //si no sirve probar con NULL
+                parte_instruccion = strtok(NULL, " "); //si no sirve probar con NULL
                 puntero_memoria_instrucciones++;
             }
+            delete cstr;
         }
     }
     
@@ -295,10 +305,10 @@ void Controlador::init_estructuras()
     for(i = 0; i < 8; ++i)
     {
         //init del buffer
-        buffer.buffer[i].palabra[0] = 0;
-        buffer.buffer[i].palabra[1] = 0;
-        buffer.buffer[i].bloque = -1;
-        buffer.buffer[i].estado = 'L'; // L de libre o disponible
+        buffer_vic.buffer[i].palabra[0] = 0;
+        buffer_vic.buffer[i].palabra[1] = 0;
+        buffer_vic.buffer[i].bloque = -1;
+        buffer_vic.buffer[i].estado = 'L'; // L de libre o disponible
     }
     for(i = 0; i < vector_hilos.longitud; ++i)
     {
@@ -324,7 +334,7 @@ void Controlador::ejecutar_hilillo()
         vector_hilos.hilos[vector_hilos.puntero_actual] = actual;
         // se aumenta el reloj ?
         //aumentar_reloj();
-        // ? aca tendria que haber sincronizacion con hilo controlador
+        // ? aca tendria que haber sincronizacion con hilo controlador (semaforo)
         // para seguir con la siguiente inst. o siguiente hilo
     }
 }
@@ -358,17 +368,17 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
     {
         // asociativa por conjuntos de 2 vias
         // num_bloque % cantidad de conjuntos
-        int bloque_cache = buscar_en_cache_datos( num_bloque );
-        if( bloque_cache == -1 ) // fallo de lectura de cache de datos
+        //int bloque_cache = buscar_en_cache_datos( num_bloque );
+        if( -1 == -1 ) // fallo de lectura de cache de datos
         {
             // buscar en el buffer victima
             // aqui se duraria la espera por si el bloque esta siendo copiado a memoria
-            int bloque_buffer = buffer.buscar( num_bloque );
+            int bloque_buffer = buffer_vic.buscar( num_bloque );
             if( bloque_buffer != -1 )
             {
                 // se realiza la copia
                 // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
-                bloque_cache = copiar_a_cache( &buffer.buffer[bloque_buffer], 4 ); // ? aqui no hay problemas
+                //bloque_cache = copiar_a_cache( &buffer.buffer[bloque_buffer], 4 ); // ? aqui no hay problemas
             }
             else // el bloque no estaba en el buffer
             {
@@ -376,7 +386,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
                 cargar_de_mem_principal( num_bloque, bloque_datos.palabra );
                 bloque_datos.bloque = num_bloque;
                 bloque_datos.estado = 'C'; // estado compartido
-                bloque_cache = copiar_a_cache( &bloque_datos, 24 ); // aqui se durarian los 24 ciclos
+                //bloque_cache = copiar_a_cache( &bloque_datos, 24 ); // aqui se durarian los 24 ciclos
             }
         }
         // acierto de lectura
@@ -384,7 +394,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
         // la primer palabra de su bloque, si no, es la segunda
         int palabra_pos = (num_palabra % 2) ? 1:0;
         // se retorna la palabra
-        *palabra_retorno = cache.datos[bloque_cache].palabra[palabra_pos];
+        //*palabra_retorno = cache.datos[bloque_cache].palabra[palabra_pos];
     }
 }
 
@@ -410,7 +420,6 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
     int num_bloque = bloque->bloque;
     // asociativa o LRU?
     // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
-    // 24 ciclos desde memoria principal
     if( retraso == 4 ) // se copia desde buffer victima
     {
 
@@ -432,6 +441,11 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
     return bloque_cache;
 }
 
+void Controlador::controlador()
+{
+
+}
+
 void Controlador::init_hilos()
 {
     hilos[0] = std::thread( hilo_controlador, this );
@@ -446,17 +460,20 @@ void Controlador::fin_hilos()
     hilos[2].join();
 }
 
-static void hilo_buffer( Controlador * ptr )
+void *Controlador::hilo_buffer( Controlador * ptr )
 {
     ptr->buffer_victima();
+    return 0;
 }
 
-static void hilo_hilillo( Controlador * ptr )
+void *Controlador::hilo_hilillo( Controlador * ptr )
 {
     ptr->ejecutar_hilillo();
+    return 0;
 }
 
-static void hilo_controlador( Controlador * ptr )
+void *Controlador::hilo_controlador( Controlador * ptr )
 {
     ptr->controlador();
+    return 0;
 }

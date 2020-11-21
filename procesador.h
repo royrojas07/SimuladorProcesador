@@ -11,11 +11,11 @@
 #include <pthread.h>
 #include <cmath>
 #include <vector>
+#include <string>
 
 struct Hilo
 {
     int PC;
-    int instruc_ptr; // para saber desde donde empezaban las intrucciones de un hilo
     int registros[32];
     int RL;
     int IR[4];
@@ -123,14 +123,14 @@ class Controlador
     ~Controlador(); //Fabian
     void aumentar_reloj(); //Aumentar reloj
     void asociar(int codigo, int x, int y, int z); // para asociar los codigos de operación
-    static void hilo_buffer( Controlador * ptr );
+    static void * hilo_buffer( Controlador * ptr );
     void buffer_victima(); //Metodo que corre el hilo del buffer // complicado...
-    static void hilo_hilillo( Controlador * ptr );
+    static void * hilo_hilillo( Controlador * ptr );
     void ejecutar_hilillo(); //metodo que esta ejecutando el hilo actual //Complicado
-    static void hilo_controlador( Controlador * ptr );
+    static void * hilo_controlador( Controlador * ptr );
     void controlador(); // metodo que realiza cambios de contexto, se encarga del manejo del reloj y quantum
     void cambio_contexto(); // No complicado  //Carlos
-    void add(int x1, int x2, int x3); //fabian
+    /*void add(int x1, int x2, int x3); //fabian
     void addi(int x1, int x2, int n); //carlos
     void sub(int x1, int x2, int x3); //carlos
     void mul( int x1, int x2, int x3 ); //roy
@@ -142,7 +142,7 @@ class Controlador
     void lr( int x1, int x2 ); //roy
     void sc(int x2, int x1, int n); //fabian
     void jal( int x1, int n ); //roy
-    void jalr( int x1, int x2, int n );//roy
+    void jalr( int x1, int x2, int n );//roy*/
     void FIN(); // En este metodo se deberia restar la longitud del vector de hilos
     void cargar_hilos(); // este puede ser el metodo que lea de los txt y podria ir en el constructor de Controlador //Fabian
     void init_estructuras();// podria llamarse en el constructor igualmente //Carlos
@@ -151,12 +151,13 @@ class Controlador
     void cargar( int direccion, int * palabra_retorno, char='D' ); // carga de memoria
     void cargar_de_mem_principal( int num_bloque, int * bloque_retorno );
     int copiar_a_cache( Bloque * bloque, int retraso );
+    void bloque_a_mem();
 
     private:
     int reloj;
     int quantum;
     int inst_ejecutadas;
-    Buffer buffer; //cambiar nombre a futuro
+    Buffer buffer_vic; //cambiar nombre a futuro
     Memoria memoria;
     Cache cache;
     Round_robin vector_hilos;
