@@ -152,6 +152,7 @@ class Controlador
     void cargar_de_mem_principal( int num_bloque, int * bloque_retorno );
     int copiar_a_cache( Bloque * bloque, int retraso );
     void bloque_a_mem();
+    int buscar_en_cache_datos( int num_bloque );
 
     private:
     int reloj;

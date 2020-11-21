@@ -366,9 +366,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
     }
     else // cache de datos
     {
-        // asociativa por conjuntos de 2 vias
-        // num_bloque % cantidad de conjuntos
-        //int bloque_cache = buscar_en_cache_datos( num_bloque );
+        int bloque_cache = buscar_en_cache_datos( num_bloque );
         if( -1 == -1 ) // fallo de lectura de cache de datos
         {
             // buscar en el buffer victima
@@ -378,7 +376,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
             {
                 // se realiza la copia
                 // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
-                //bloque_cache = copiar_a_cache( &buffer.buffer[bloque_buffer], 4 ); // ? aqui no hay problemas
+                bloque_cache = copiar_a_cache( &buffer.buffer[bloque_buffer], 4 ); // ? aqui no hay problemas
             }
             else // el bloque no estaba en el buffer
             {
@@ -386,7 +384,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
                 cargar_de_mem_principal( num_bloque, bloque_datos.palabra );
                 bloque_datos.bloque = num_bloque;
                 bloque_datos.estado = 'C'; // estado compartido
-                //bloque_cache = copiar_a_cache( &bloque_datos, 24 ); // aqui se durarian los 24 ciclos
+                bloque_cache = copiar_a_cache( &bloque_datos, 24 ); // aqui se durarian los 24 ciclos
             }
         }
         // acierto de lectura
@@ -394,7 +392,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
         // la primer palabra de su bloque, si no, es la segunda
         int palabra_pos = (num_palabra % 2) ? 1:0;
         // se retorna la palabra
-        //*palabra_retorno = cache.datos[bloque_cache].palabra[palabra_pos];
+        *palabra_retorno = cache.datos[bloque_cache].palabra[palabra_pos];
     }
 }
 
@@ -412,6 +410,22 @@ void Controlador::cargar_de_mem_principal( int num_bloque, int * bloque_retorno 
         bloque_retorno[1] = memoria.datos[(num_bloque*2)+1];
     }
     
+}
+
+int buscar_en_cache_datos( int num_bloque )
+{
+    // asociativa por conjuntos de 2 vias
+    // num_bloque % cantidad_de_conjuntos
+    int conjunto = num_bloque % 2;
+    if( cache.datos[conjunto*2].bloque == num_bloque )
+    {
+        return conjunto*2;
+    }
+    else if( cache.datos[(conjunto*2)+1].bloque == num_bloque )
+    {
+        return (conjunto*2)+1;
+    }
+    return -1;
 }
 
 int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en bloque en cache donde hizo la copia
