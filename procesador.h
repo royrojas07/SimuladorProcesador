@@ -57,6 +57,61 @@ struct Round_robin // Carlos
     std::vector<Hilos> hilos;
 };
 
+struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
+{
+    int longitud;
+    int inicio; //puntero a la celda del array que es el inicio 
+    int fin; //puntero donde se tiene que hacer el siguiente push 
+    //bool solicitud_hilo; //me indica si un hilo quiere un bloque que esta en el buffer 
+    BloqueDatos buffer[8];
+    void insertar(BloqueDatos bloque)
+    {
+        bloque.estado = 'V'; //valido 
+        buffer[fin++] = bloque;
+        fin = fin % 8; //por propiedades de arreglo circular
+        longitud += 1;
+    }
+
+    BloqueDatos sacar()
+    {
+        buffer[inicio].estado = 'E'; //significa que se esta escribiendo 
+        BloqueDatos bloque = buffer[inicio++];
+        inicio = inicio % 8; //por las propiedades de arreglo circular
+        longitud -= 1;
+        return bloque;
+    }
+
+    bool llena()
+    {
+        if(longitud == 8)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    bool vacia()
+    {
+        if(longitud == 0)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    int buscar(int num_bloque) //retorna la pos en la que se encuentra lo buscado, en caso de no encontrarlo retorna -1
+    {
+        for(int i = 0; i < 8; ++i)
+        {
+            if(buffer[i].bloque == num_bloque)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+};
+
 class Controlador
 {
     public:
@@ -95,7 +150,7 @@ class Controlador
     int reloj;
     int quantum;
     int inst_ejecutadas;
-    BloqueDatos buffer[8];
+    Buffer buffer; //cambiar nombre a futuro
     Memoria memoria;
     Cache cache;
     Round_robin vector_hilos;
