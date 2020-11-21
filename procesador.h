@@ -6,8 +6,10 @@
 #include <iostream>
 #include <string>
 #include <sstream>
-
-//#include <pthread.h>
+#include <thread>
+#include <pthread.h>
+#include <cmath>
+#include <vector>
 
 struct Hilo
 {
@@ -52,7 +54,7 @@ struct Round_robin // Carlos
 {
     int puntero_actual;
     int longitud;
-    Hilo * hilos;
+    std::vector<Hilos> hilos;
 };
 
 class Controlador
@@ -62,8 +64,11 @@ class Controlador
     ~Controlador(); //Fabian
     void aumentar_reloj(); //Aumentar reloj
     void asociar(int codigo, int x, int y, int z); // para asociar los codigos de operación
+    static void hilo_buffer( Controlador * ptr );
     void buffer_victima(); //Metodo que corre el hilo del buffer // complicado...
+    static void hilo_hilillo( Controlador * ptr );
     void ejecutar_hilillo(); //metodo que esta ejecutando el hilo actual //Complicado
+    static void hilo_controlador( Controlador * ptr );
     void controlador(); // metodo que realiza cambios de contexto, se encarga del manejo del reloj y quantum
     void cambio_contexto(); // No complicado  //Carlos
     void add(int x1, int x2, int x3); //fabian
@@ -84,7 +89,8 @@ class Controlador
     void init_estructuras();// podria llamarse en el constructor igualmente //Carlos
     void init_hilos(); //crea los hilos y los manda a ejecutar sus metodos respectivos //Roy
     void fin_hilos();
-    
+    void mem_get( int direccion, int * palabra_retorno, char memoria='D' ); // carga de memoria
+
     private:
     int reloj;
     int quantum;

@@ -27,8 +27,10 @@ void Controlador::sub(int x1, int x2, int x3)
 
 void Controlador::mul( int x1, int x2, int x3 )
 {
-    hilos[0].registros[x1] = hilos[0].registros[x2] * hilos[0].registros[x3];
-    aumentar_reloj();
+    int actual = vector_hilos.puntero_actual;
+    vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].registros[x2]
+            * vector_hilos.hilos[actual].registros[x3];
+    //aumentar_reloj();
 }
 
 void Controlador::div(int x1, int x2, int x3)
@@ -62,9 +64,10 @@ void Controlador::bne(int x1, int x2, int n)
 
 void Controlador::lr( int x1, int x2 )
 {
-    int dir = hilos[0].registros[x2];
+    int actual = vector_hilos.puntero_actual;
+    int dir = vector_hilos.hilos[actual].registros[x2];
     //hilos[0].registros[x1] = mem( dir ); // x1 <- M[x2]
-    hilos[0].RL = hilos[0].registros[x2]; // RL <- x2
+    vector_hilos.hilos[actual].RL = vector_hilos.hilos[actual].registros[x2]; // RL <- x2
     //aumentar_reloj();
 }
 
@@ -79,15 +82,17 @@ void Controlador::sc(int x2, int x1, int n)
 
 void Controlador::jal( int x1, int n )
 {
-    hilos[0].registros[x1] = hilos[0].PC; // x1 <- PC
-    hilos[0].PC += n; // PC <- PC+n
+    int actual = vector_hilos.puntero_actual;
+    vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].PC; // x1 <- PC
+    vector_hilos.hilos[actual].PC += n; // PC <- PC+n
     //aumentar_reloj();
 }
 
 void Controlador::jalr( int x1, int x2, int n )
 {
-    hilos[0].registros[x1] = hilos[0].PC; // x1 = PC
-    hilos[0].PC = hilos[0].registros[x2] + n; // PC = x2+n
+    int actual = vector_hilos.puntero_actual;
+    vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].PC; // x1 = PC
+    vector_hilos.hilos[actual].PC = vector_hilos.hilos[actual].registros[x2] + n; // PC = x2+n
     //aumentar_reloj();
 }
 
@@ -245,7 +250,7 @@ void Controlador::init_estructuras()
         //Init de cache de datos
         cache.datos[i].palabra[0] = 0;
         cache.datos[i].palabra[1] = 0;
-        cache.datos[i].bloque = -1;
+        cache.datos[i].num_bloque = -1;
         cache.datos[i].estado = 'I';
         cache.datos[i].ultimo_uso = -1;
     }
@@ -256,7 +261,7 @@ void Controlador::init_estructuras()
         {
             cache.instrucciones[i].palabra[j] = 0;
         }
-        cache.instrucciones[i].bloque = -1;
+        cache.instrucciones[i].num_bloque = -1;
         cache.instrucciones[i].estado = 'I';
     }
     for(i = 0; i < 8; ++i)
@@ -264,7 +269,7 @@ void Controlador::init_estructuras()
         //init del buffer
         buffer[i].palabra[0] = 0;
         buffer[i].palabra[1] = 0;
-        buffer[i].bloque = -1;
+        buffer[i].num_bloque = -1;
         buffer[i].estado = 'L'; // L de libre o disponible
     }
     for(i = 0; i < vector_hilos.longitud; ++i)
@@ -277,14 +282,84 @@ void Controlador::init_estructuras()
 
 void Controlador::ejecutar_hilillo()
 {
-    //el hilo que pasa en ejecucion 
+    // mientras queden hilos por ejecutar
+    while( vector_hilos.hilos.size() != 0 )
+    {
+        // se treabaja con el hilo al que se apunta
+        Hilo actual = vector_hilos.hilos[vector_hilos.puntero_actual];
+        // se carga al IR la instrucción que apunta el PC
+        mem_get( actual.PC, actual.IR, 'I' );
+        // se ejecuta la instrucción
+        asociar( actual.IR[0], actual.IR[1], actual.IR[2], actual.IR[3] );
+        actual.PC += 4;
+        // se guardan los cambios realizados al hilillo
+        vector_hilos.hilos[vector_hilos.puntero_actual] = actual;
+        // se aumenta el reloj
+        //aumentar_reloj();
+        // ? aca tendria que haber sincronizacion con hilo controlador
+        // para seguir con la siguiente inst. o siguiente hilo
+    }
+}
+
+void mem_get( int direccion, int * palabra_retorno, char memoria='D' )
+{
+    // se obtienen bloque y palabra a los que pertenece la dir. de memoria
+    int num_bloque = floor(direccion/8);
+    int num_palabra = floor(direccion/4);
+    if( memoria == 'I' ) // cache de instrucciones
+    {
+        // mapeo directo
+        if( cache.instrucciones[num_bloque%8].bloque != num_bloque ) // fallo de lectura
+        {
+            // se busca en la memoria principal
+            BloqueInstruc bloque_instr = mem_principal( num_bloque ); // creo que no es necesario el num_palabra
+            // se reemplaza en cache de instrucciones
+            // cache.instrucciones[num_bloque%8] = bloque_instr;
+            copiar_a_cache( num_bloque, bloque_instr ); // aqui se durarian los 24 ciclos
+        }
+        // si el numero de palabra es par entonces corresponde a
+        // la primer palabra de su bloque, si no, es la segunda.
+        int palabra_pos = (num_palabra % 2) ? 4:0;
+        // se retorna la palabra
+        for( int i = 0; i < 4; ++i )
+            palabra_retorno[i] = cache.instrucciones[num_bloque%8].palabra[palabra_pos+i];
+    }
+    else // cache de datos
+    {
+        // asociativa por conjuntos de 2 vias
+        // num_bloque % cantidad de conjuntos
+        int bloque_cache = buscar_en_cache_datos( num_bloque );
+        if( bloque_cache == -1 ) // fallo de lectura de cache de datos
+        {
+            // buscar en el buffer victima
+            // aqui se duraria la espera por si el bloque esta siendo copiado a memoria
+            int bloque_buffer = buscar_en_buffer( num_bloque );
+            if( bloque_buffer != -1 )
+            {
+                // se realiza la copia
+                // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
+                bloque_cache = copiar_a_cache( buffer[bloque_buffer] );
+            }
+            else // el bloque no estaba en el buffer
+            {
+                BloqueDatos bloque_datos = mem_principal( num_bloque );
+                bloque_cache = copiar_a_cache( bloque_datos ); // aqui se durarian los 24 ciclos
+            }
+        }
+        // acierto de lectura
+        // si el numero de palabra es par entonces corresponde a
+        // la primer palabra de su bloque, si no, es la segunda
+        int palabra_pos = (num_palabra % 2) ? 1:0;
+        // se retorna la palabra
+        *palabra_retorno = cache.datos[bloque_cache].palabra[palabra_pos];
+    }
 }
 
 void Controlador::init_hilos()
 {
-    hilos[0] = std::thread( controlador );
-    hilos[1] = std::thread( ejecutar_hilillo );
-    hilos[2] = std::thread( buffer_victima );
+    hilos[0] = std::thread( hilo_controlador, this );
+    hilos[1] = std::thread( hilo_hilillo, this );
+    hilos[2] = std::thread( hilo_buffer, this );
 }
 
 void Controlador::fin_hilos()
@@ -292,4 +367,19 @@ void Controlador::fin_hilos()
     hilos[0].join();
     hilos[1].join();
     hilos[2].join();
+}
+
+static void hilo_buffer( Controlador * ptr )
+{
+    ptr->buffer_victima();
+}
+
+static void hilo_hilillo( Controlador * ptr )
+{
+    ptr->ejecutar_hilillo();
+}
+
+static void hilo_controlador( Controlador * ptr )
+{
+    ptr->controlador();
 }
