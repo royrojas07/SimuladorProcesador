@@ -144,7 +144,8 @@ class Controlador
     void init_estructuras();// podria llamarse en el constructor igualmente //Carlos
     void init_hilos(); //crea los hilos y los manda a ejecutar sus metodos respectivos //Roy
     void fin_hilos();
-    void mem_get( int direccion, int * palabra_retorno, char memoria='D' ); // carga de memoria
+    void cargar( int direccion, int * palabra_retorno, char memoria='D' ); // carga de memoria
+    void cargar_de_mem_principal( int num_bloque, int * bloque_retorno );
 
     private:
     int reloj;

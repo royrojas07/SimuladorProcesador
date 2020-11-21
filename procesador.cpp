@@ -316,7 +316,7 @@ void Controlador::ejecutar_hilillo()
         // se treabaja con el hilo al que se apunta
         Hilo actual = vector_hilos.hilos[vector_hilos.puntero_actual];
         // se carga al IR la instrucción que apunta el PC
-        mem_get( actual.PC, actual.IR, 'I' );
+        cargar( actual.PC, actual.IR, 'I' );
         // se ejecuta la instrucción
         asociar( actual.IR[0], actual.IR[1], actual.IR[2], actual.IR[3] );
         actual.PC += 4;
@@ -329,7 +329,7 @@ void Controlador::ejecutar_hilillo()
     }
 }
 
-void mem_get( int direccion, int * palabra_retorno, char memoria='D' )
+void cargar( int direccion, int * palabra_retorno, char memoria='D' )
 {
     // se obtienen bloque y palabra a los que pertenece la dir. de memoria
     int num_bloque = floor(direccion/8);
@@ -340,7 +340,10 @@ void mem_get( int direccion, int * palabra_retorno, char memoria='D' )
         if( cache.instrucciones[num_bloque%8].bloque != num_bloque ) // fallo de lectura
         {
             // se busca en la memoria principal
-            BloqueInstruc bloque_instr = mem_principal( num_bloque ); // creo que no es necesario el num_palabra
+            BloqueInstruc bloque_instr;
+            cargar_de_mem_principal( num_bloque, bloque_instr.palabra );
+            bloque_instr.bloque = num_bloque;
+            bloque_instr.estado = 'C'; // estado compartido
             // se reemplaza en cache de instrucciones
             // cache.instrucciones[num_bloque%8] = bloque_instr;
             copiar_a_cache( num_bloque, bloque_instr ); // aqui se durarian los 24 ciclos
@@ -361,7 +364,7 @@ void mem_get( int direccion, int * palabra_retorno, char memoria='D' )
         {
             // buscar en el buffer victima
             // aqui se duraria la espera por si el bloque esta siendo copiado a memoria
-            int bloque_buffer = buscar_en_buffer( num_bloque );
+            int bloque_buffer = buffer.buscar( num_bloque );
             if( bloque_buffer != -1 )
             {
                 // se realiza la copia
@@ -370,7 +373,10 @@ void mem_get( int direccion, int * palabra_retorno, char memoria='D' )
             }
             else // el bloque no estaba en el buffer
             {
-                BloqueDatos bloque_datos = mem_principal( num_bloque );
+                BloqueDatos bloque_datos;
+                cargar_de_mem_principal( num_bloque, bloque_datos.palabra );
+                bloque_datos.bloque = num_bloque;
+                bloque_datos.estado = 'C'; // estado compartido
                 bloque_cache = copiar_a_cache( bloque_datos ); // aqui se durarian los 24 ciclos
             }
         }
@@ -381,6 +387,22 @@ void mem_get( int direccion, int * palabra_retorno, char memoria='D' )
         // se retorna la palabra
         *palabra_retorno = cache.datos[bloque_cache].palabra[palabra_pos];
     }
+}
+
+void cargar_de_mem_principal( int num_bloque, int * bloque_retorno )
+{
+    if( num_bloque >= 48 ) // mem. de intrucciones
+    {
+        int bloque_instr = num_bloque - 48;
+        for( int i = 0; i < 8; ++i )
+            bloque_retorno[i] = memoria[(num_bloque*8)+i];
+    }
+    else // mem. de datos
+    {
+        bloque_retorno[0] = memoria[(num_bloque*2)];
+        bloque_retorno[1] = memoria[(num_bloque*2)+1];
+    }
+    
 }
 
 void Controlador::init_hilos()
