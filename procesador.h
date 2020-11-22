@@ -13,12 +13,10 @@
 #include <cmath>
 #include <vector>
 #include <string>
+#include <limits>
+#include <semaphore.h>
 #define NUM_THREADS 3
-#define INVALIDO 'I'
-#define LIBRE 'L'
-#define ESCRIBIENDO 'E'
-#define COMPARTIDO 'C'
-#define MODIFICADO 'M'
+
 //?defines de los estados de los bloques en buffer y cache
 
 
@@ -61,7 +59,7 @@ class Controlador
     int copiar_a_cache( Bloque * bloque, int retraso );
     void buffer_a_mem();
     int buscar_en_cache_datos( int num_bloque );
-    void menos_recien_usado();
+    int menos_recien_usado();
 
     private:
     int reloj;

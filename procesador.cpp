@@ -41,7 +41,9 @@ void Controlador::div(int x1, int x2, int x3)
 void Controlador::lw(int x1, int x2, int n)
 {
     int direccion = hilos[0].registros[x2] + n;
-    hilos[0].registros[x1] = memoria.datos[direccion]; // x1 <- M[x2 + n]
+    int* palabra;
+    cargar(direccion,palabra);
+    hilos[0].registros[x1] = palabra; // x1 <- M[x2 + n]
 }
 
 void Controlador::sw(int x2, int x1, int n)
@@ -176,17 +178,14 @@ void Controlador::buffer_a_mem()
 {
     BloqueDatos victima = buffer_vic.sacar();
     int direccion;
-    for(int retrasos = 0; retrasos < 24; ++retrasos)
+    int retrasos = 0;
+    while(retrasos < 24)
     {
-         pthread_barrier_wait(&barrera);
-        if(retrasos == 23)
-        {
-            //Esto no se si lo hice bien
-            direccion = victima.bloque * 2;
-            memoria.datos[direccion] = victima.palabra[0];
-            memoria.datos[direccion + 1] = victima.palabra[1];
-        }
-    }        
+        pthread_barrier_wait(&barrera);
+    }
+    direccion = victima.bloque * 2;
+    memoria.datos[direccion] = victima.palabra[0];
+    memoria.datos[direccion + 1] = victima.palabra[1];       
 }
     
 
@@ -350,7 +349,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
             BloqueInstruc bloque_instr;
             cargar_de_mem_principal( num_bloque, bloque_instr.palabra );
             bloque_instr.bloque = num_bloque;
-            bloque_instr.estado = 'C'; // estado compartido
+            bloque_instr.estado = COMPARTIDO; // estado compartido
             // se copia en cache de instrucciones
             copiar_a_cache( &bloque_instr, 24 ); // aqui se duran los 24 ciclos
         }
@@ -374,6 +373,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
             {
                 // se realiza la copia
                 // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
+                buffer_vic.buffer[bloque_buffer].estado = ESCRIBIENDO;
                 bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4 ); // ? aqui no hay problemas
             }
             else // el bloque no estaba en el buffer
@@ -381,7 +381,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
                 BloqueDatos bloque_datos;
                 cargar_de_mem_principal( num_bloque, bloque_datos.palabra );
                 bloque_datos.bloque = num_bloque;
-                bloque_datos.estado = 'C'; // estado compartido
+                bloque_datos.estado = COMPARTIDO; // estado compartido
                 bloque_cache = copiar_a_cache( &bloque_datos, 24 ); // aqui se durarian los 24 ciclos
             }
         }
@@ -428,36 +428,86 @@ int Controlador::buscar_en_cache_datos( int num_bloque )
 int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en bloque en cache donde hizo la copia
 {
     int bloque_cache;
+    int counter = 0;
     int num_bloque = bloque->bloque;
     int conjunto = num_bloque % 2;
+    int direc_reemplazo;
+    int direc_reemplazo_buff;
+    bool insertado = false;
+    BloqueDatos * bloq_datos = dynamic_cast< BloqueDatos * >( bloque );
     // asociativa o LRU?
     // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
-    if( retraso == 4 ) // se copia desde buffer victima
+    if( bloq_datos != NULL ) // se copia desde buffer victima
     {
         // seria LRU porque con ultimo_uso = -1 ya se sabe si el bloque esta en invalido
         // lru()
-        menos_recien_usado(bloque); //? preguntar un poco a Roy acerca de esto
+        direc_reemplazo = menos_recien_usado(); 
+
+        while(counter < retraso)
+        {
+            pthread_barrier_wait(&barrera);
+            ++counter;
+        }
+        
+        if(cache.datos[direc_reemplazo].estado == INVALIDO || cache.datos[direc_reemplazo].estado == COMPARTIDO)
+        {
+            cache.datos[direc_reemplazo] = bloque; //se puede hacer esto?
+                                                    //La otra seria hacer dynamic cast y igualar cada una de la palabras                                        
+        }
+        else // estado del bloque en cache MODIFICADO
+        {
+            direc_reemplazo_buff = buffer_vic.buscar(cache.datos[direc_reemplazo])
+            if(direc_reemplazo_buff == -1)
+            {
+                while(!insertado)
+                {
+                    if(!buffer_vic.llena())
+                    {
+                        insertado = true;
+                        if(buffer_vic.vacio()) //si esta vacio le tengo que avisar al hilo del buffer que ahora hay algo
+                        {
+                            senal_hilo_a_buffer.release();
+                        }
+                        counter = 0;
+                        while(counter < 4)
+                            pthread_barrier_wait(&barrera);
+                        buffer_vic.insertar(cache.datos[direc_reemplazo]);
+                        cache.datos[direc_reemplazo] = bloque; //modif de la cache
+                    }
+                    else
+                    {
+                        pthread_barrier_wait(&barrera); //para sincronizacion tiene que esperar hasta que el buffer deje de estar lleno
+                    }
+                }
+            }
+            else
+            {
+                while(counter < 4)
+                    pthread_barrier_wait(&barrera);
+                buffer_vic.buffer[direc_reemplazo_buff] = cache.datos[direc_reemplazo]; //MERGING
+                cache.datos[direc_reemplazo] = bloque; //modif de la cache
+            }
+        }
         //Fijarme en los estados de la cache para ver si tengo que hacer merging o solo meter al buffer
         // :-)
     }
-    else // se copia desde memoria principal
+    else// se copia a cache de instrucciones
     {
-        BloqueDatos * bloq_datos = dynamic_cast< BloqueDatos * >( bloque );
-        if( bloq_datos != NULL ) // se copia a cache de datos
-        {
-            // seria LRU porque con ultimo_uso = -1 ya se sabe si el bloque esta en invalido
-            //medir los retrasos aqui
-             menos_recien_usado(bloque);
-        }
-        else // se copia a cache de instrucciones
-        {
-            BloqueInstruc * bloq_instr = dynamic_cast< BloqueInstruc * >( bloque );
+        BloqueInstruc * bloq_instr = dynamic_cast< BloqueInstruc * >( bloque );
             // falta el retraso !!!!!
-            // reemplazo de mapeo directo
-            cache.instrucciones[num_bloque%8] = *bloq_instr;
+        while(counter < retraso)
+        {
+            pthread_barrier_wait(&barrera);
+            ++counter;
         }
+            // reemplazo de mapeo directo
+        cache.instrucciones[num_bloque%8] = *bloq_instr;
     }
-    return bloque_cache;
+    if(retraso == 4)
+    //Si ocurrio un retraso de 4 es que se estaba copiando de buffer, por lo que se coloco estado de ESCRIBIENDO en el buffer
+    //de esta manera devuelvo el bloque del buffer a un estado valido para que cuando siga en la cola se copie a memoria
+        bloq_datos->estado = VALIDO; 
+    return direc_reemplazo;
 }
 
 void Controlador::escribir( int direccion, int palabra )
@@ -482,7 +532,7 @@ void Controlador::escribir( int direccion, int palabra )
             BloqueDatos bloque_datos;
             cargar_de_mem_principal( num_bloque, bloque_datos.palabra );
             bloque_datos.bloque = num_bloque;
-            bloque_datos.estado = 'C'; // estado compartido
+            bloque_datos.estado = COMPARTIDO; // estado compartido
             bloque_cache = copiar_a_cache( &bloque_datos, 24 ); // aqui se durarian los 24 ciclos
         }
     }
@@ -531,7 +581,17 @@ void *Controlador::hilo_controlador( Controlador * ptr )
     return 0;
 }
 
-void Controlador::menos_recien_usado()
+int Controlador::menos_recien_usado() 
 {
-
+    int menor = INT_MAX; //numero alto como inicializacion
+    int direccion; 
+    for(int i = 0; i < 4; ++i)
+    {
+        if(cache.datos[i].ultimo_uso < menor)
+        {
+            menor = cache.datos[i].ultimo_uso;
+            direccion = i;
+        }
+    }
+    return direccion;
 }
