@@ -1,8 +1,8 @@
 #include "procesador.h"
 Controlador::Controlador()
 {
-    cargar_hilos();
     init_estructuras();
+    cargar_hilos();
     reloj = 0;
 }
 
@@ -251,14 +251,11 @@ void Controlador::cargar_hilos()
         int puntero_memoria_instrucciones = 0;
         //registrar el numero del puntero de memoria de instrucciones en el que empiezan las instrucciones por hilillo ****
         while (std::getline(archivo_leido, linea_instruccion)) {
-            std::cout << linea_instruccion; // para pruebas
-            puts("todo bien aca");
+            //std::cout << linea_instruccion << std::endl; // para pruebas
             char *cstr = new char[linea_instruccion.length() + 1];
             strcpy(cstr, linea_instruccion.c_str());
             char* parte_instruccion= strtok(cstr, " ");
-            
             while(parte_instruccion != NULL){
-                puts(parte_instruccion);
                 int parte_instruccion_int = atoi(parte_instruccion);
                 memoria.instrucciones[puntero_memoria_instrucciones] = parte_instruccion_int;
                 parte_instruccion = strtok(NULL, " "); //si no sirve probar con NULL
@@ -267,8 +264,6 @@ void Controlador::cargar_hilos()
             delete cstr;
         }
     }
-    
-    
     //lee archivos de texto dados por el usuario
     //conforme se leen se va cargando su contenido a la memoria de instrucciones y al arreglo de hilos.
     // Se pide el quantum
@@ -310,12 +305,12 @@ void Controlador::init_estructuras()
         buffer_vic.buffer[i].bloque = -1;
         buffer_vic.buffer[i].estado = 'L'; // L de libre o disponible
     }
-    for(i = 0; i < vector_hilos.longitud; ++i)
+    /*for(i = 0; i < vector_hilos.longitud; ++i)
     {
         for(int j = 0; j < 32; ++j)
             //Init de registros de cada hilo
             vector_hilos.hilos[i].registros[j] = 0;
-    }
+    }*/
 }
 
 void Controlador::ejecutar_hilillo()
@@ -332,9 +327,11 @@ void Controlador::ejecutar_hilillo()
         actual.PC += 4;
         // se guardan los cambios realizados al hilillo
         vector_hilos.hilos[vector_hilos.puntero_actual] = actual;
-        // se aumenta el reloj ?
-        //aumentar_reloj();
-        // ? aca tendria que haber sincronizacion con hilo controlador (semaforo)
+        // se aumenta contador de instrucciones ejecutadas por este hilillo
+        inst_ejecutadas++;
+        // se aumenta el reloj (barrera)
+        // aumentar_reloj();
+        // aca tendria que haber sincronizacion con hilo controlador (semaforo)
         // para seguir con la siguiente inst. o siguiente hilo
     }
 }
@@ -344,6 +341,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
     // se obtienen bloque y palabra a los que pertenece la dir. de memoria
     int num_bloque = floor(direccion/8);
     int num_palabra = floor(direccion/4);
+    std::cout << num_bloque << " " << num_palabra << std::endl;
     if( memoria == 'I' ) // cache de instrucciones
     {
         // mapeo directo
@@ -353,10 +351,11 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
             BloqueInstruc bloque_instr;
             cargar_de_mem_principal( num_bloque, bloque_instr.palabra );
             bloque_instr.bloque = num_bloque;
-            bloque_instr.estado = 'C'; // estado compartido ?
+            bloque_instr.estado = 'C'; // estado compartido
             // se copia en cache de instrucciones
             copiar_a_cache( &bloque_instr, 24 ); // aqui se duran los 24 ciclos
         }
+        // acierto de lectura o ya se subio el bloque
         // si el numero de palabra es par entonces corresponde a
         // la primer palabra de su bloque, si no, es la segunda.
         int palabra_pos = (num_palabra % 2) ? 4:0;
@@ -367,7 +366,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
     else // cache de datos
     {
         int bloque_cache = buscar_en_cache_datos( num_bloque );
-        if( -1 == -1 ) // fallo de lectura de cache de datos
+        if( bloque_cache == -1 ) // fallo de lectura de cache de datos
         {
             // buscar en el buffer victima
             // aqui se duraria la espera por si el bloque esta siendo copiado a memoria
@@ -387,7 +386,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
                 bloque_cache = copiar_a_cache( &bloque_datos, 24 ); // aqui se durarian los 24 ciclos
             }
         }
-        // acierto de lectura
+        // acierto de lectura o ya se subio el bloque a cache
         // si el numero de palabra es par entonces corresponde a
         // la primer palabra de su bloque, si no, es la segunda
         int palabra_pos = (num_palabra % 2) ? 1:0;
@@ -402,14 +401,13 @@ void Controlador::cargar_de_mem_principal( int num_bloque, int * bloque_retorno 
     {
         int bloque_instr = num_bloque - 48;
         for( int i = 0; i < 8; ++i )
-            bloque_retorno[i] = memoria.instrucciones[(num_bloque*8)+i];
+            bloque_retorno[i] = memoria.instrucciones[(bloque_instr*8)+i];
     }
     else // mem. de datos
     {
         bloque_retorno[0] = memoria.datos[(num_bloque*2)];
         bloque_retorno[1] = memoria.datos[(num_bloque*2)+1];
     }
-    
 }
 
 int Controlador::buscar_en_cache_datos( int num_bloque )
@@ -432,27 +430,64 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
 {
     int bloque_cache;
     int num_bloque = bloque->bloque;
+    int conjunto = num_bloque % 2;
     // asociativa o LRU?
     // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
     if( retraso == 4 ) // se copia desde buffer victima
     {
-
+        // seria LRU porque con ultimo_uso = -1 ya se sabe si el bloque esta en invalido
+        // lru()
+        // :-)
     }
     else // se copia desde memoria principal
     {
         BloqueDatos * bloq_datos = dynamic_cast< BloqueDatos * >( bloque );
         if( bloq_datos != NULL ) // se copia a cache de datos
         {
-
+            // seria LRU porque con ultimo_uso = -1 ya se sabe si el bloque esta en invalido
         }
         else // se copia a cache de instrucciones
         {
             BloqueInstruc * bloq_instr = dynamic_cast< BloqueInstruc * >( bloque );
+            // falta el retraso !!!!!
             // reemplazo de mapeo directo
             cache.instrucciones[num_bloque%8] = *bloq_instr;
         }
     }
     return bloque_cache;
+}
+
+void Controlador::escribir( int direccion, int palabra )
+{
+    // se obtienen bloque y palabra a los que pertenece la dir. de memoria
+    int num_bloque = floor(direccion/8);
+    int num_palabra = floor(direccion/4);
+    int bloque_cache = buscar_en_cache_datos( num_bloque );
+    if( bloque_cache == -1 ) // fallo de escritura en cache
+    {
+        // buscar en el buffer victima
+        // aqui se duraria la espera por si el bloque esta siendo copiado a memoria
+        int bloque_buffer = buffer_vic.buscar( num_bloque );
+        if( bloque_buffer != -1 )
+        {
+            // se realiza la copia
+            // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
+            bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4 ); // ? aqui no hay problemas
+        }
+        else // el bloque no estaba en el buffer
+        {
+            BloqueDatos bloque_datos;
+            cargar_de_mem_principal( num_bloque, bloque_datos.palabra );
+            bloque_datos.bloque = num_bloque;
+            bloque_datos.estado = 'C'; // estado compartido
+            bloque_cache = copiar_a_cache( &bloque_datos, 24 ); // aqui se durarian los 24 ciclos
+        }
+    }
+    // hit de escritura o ya se subio el bloque a cache
+    // si el numero de palabra es par entonces corresponde a
+    // la primer palabra de su bloque, si no, es la segunda
+    int palabra_pos = (num_palabra % 2) ? 1:0;
+    cache.datos[bloque_cache].palabra[palabra_pos] = palabra;
 }
 
 void Controlador::controlador()

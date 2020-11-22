@@ -4,8 +4,9 @@
 
 int main(){
     Controlador controlador;
-    //controlador.init_hilos();
-    //controlador.fin_hilos();
+    controlador.init_hilos();
+    controlador.fin_hilos();
+    puts("TODO BIEN");
 
     return 0;
 };
