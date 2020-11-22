@@ -10,7 +10,7 @@ Controlador::~Controlador()
 {
     
 }
-/*
+
 void Controlador::add(int x1, int x2, int x3){
     vector_hilos.hilos[0].registros[x1] = hilos[0].registros[x2] + hilos[0].registros[x3];
 }
@@ -94,7 +94,7 @@ void Controlador::jalr( int x1, int x2, int n )
     vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].PC; // x1 = PC
     vector_hilos.hilos[actual].PC = vector_hilos.hilos[actual].registros[x2] + n; // PC = x2+n
     //aumentar_reloj();
-}*/
+}
 
 void Controlador::FIN()
 {
@@ -103,11 +103,11 @@ void Controlador::FIN()
 
 void Controlador::aumentar_reloj() 
 {
-
+    ++reloj;
 }
 
 void Controlador::asociar(int codigo, int x, int y, int z) //Si no se ocupa un parametro para un metodo se pasa un cero y no se hace nada con el 
-{/*
+{
     switch (codigo)
     {
     case 19:
@@ -154,31 +154,31 @@ void Controlador::asociar(int codigo, int x, int y, int z) //Si no se ocupa un p
         break;
     default:
         break;
-    }*/
+    }
 }
 
 void Controlador::buffer_victima()
-{/*
+{
     int longitud_buffer;
     while(true)
     {
-        if(//semaforo de que llego al buffer)
+        if(senal_hilo_a_buffer.acquire())
         {
-            while(!buffer.vacio)
+            while(!buffer.vacio())
             {
-                bloque_a_mem();
+                buffer_a_mem();
             }
         }   
-    }*/
+    }
 }
 
-void Controlador::bloque_a_mem()
+void Controlador::buffer_a_mem()
 {
     BloqueDatos victima = buffer_vic.sacar();
     int direccion;
     for(int retrasos = 0; retrasos < 24; ++retrasos)
     {
-        //barrera
+         pthread_barrier_wait(&barrera);
         if(retrasos == 23)
         {
             //Esto no se si lo hice bien
@@ -284,7 +284,7 @@ void Controlador::init_estructuras()
         cache.datos[i].palabra[0] = 0;
         cache.datos[i].palabra[1] = 0;
         cache.datos[i].bloque = -1;
-        cache.datos[i].estado = 'I';
+        cache.datos[i].estado = INVALIDO;
         cache.datos[i].ultimo_uso = -1;
     }
     //Falta el init de cache de instrucciones con 0
@@ -295,7 +295,7 @@ void Controlador::init_estructuras()
             cache.instrucciones[i].palabra[j] = 0;
         }
         cache.instrucciones[i].bloque = -1;
-        cache.instrucciones[i].estado = 'I';
+        cache.instrucciones[i].estado = INVALIDO;
     }
     for(i = 0; i < 8; ++i)
     {
@@ -303,7 +303,7 @@ void Controlador::init_estructuras()
         buffer_vic.buffer[i].palabra[0] = 0;
         buffer_vic.buffer[i].palabra[1] = 0;
         buffer_vic.buffer[i].bloque = -1;
-        buffer_vic.buffer[i].estado = 'L'; // L de libre o disponible
+        buffer_vic.buffer[i].estado = LIBRE; 
     }
     /*for(i = 0; i < vector_hilos.longitud; ++i)
     {
@@ -329,8 +329,7 @@ void Controlador::ejecutar_hilillo()
         vector_hilos.hilos[vector_hilos.puntero_actual] = actual;
         // se aumenta contador de instrucciones ejecutadas por este hilillo
         inst_ejecutadas++;
-        // se aumenta el reloj (barrera)
-        // aumentar_reloj();
+        pthread_barrier_wait(&barrera);
         // aca tendria que haber sincronizacion con hilo controlador (semaforo)
         // para seguir con la siguiente inst. o siguiente hilo
     }
@@ -437,6 +436,8 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
     {
         // seria LRU porque con ultimo_uso = -1 ya se sabe si el bloque esta en invalido
         // lru()
+        menos_recien_usado(bloque); //? preguntar un poco a Roy acerca de esto
+        //Fijarme en los estados de la cache para ver si tengo que hacer merging o solo meter al buffer
         // :-)
     }
     else // se copia desde memoria principal
@@ -445,6 +446,8 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
         if( bloq_datos != NULL ) // se copia a cache de datos
         {
             // seria LRU porque con ultimo_uso = -1 ya se sabe si el bloque esta en invalido
+            //medir los retrasos aqui
+             menos_recien_usado(bloque);
         }
         else // se copia a cache de instrucciones
         {
@@ -497,6 +500,7 @@ void Controlador::controlador()
 
 void Controlador::init_hilos()
 {
+    pthread_barrier_init (&barrera, NULL, 3);
     hilos[0] = std::thread( hilo_controlador, this );
     hilos[1] = std::thread( hilo_hilillo, this );
     hilos[2] = std::thread( hilo_buffer, this );
@@ -525,4 +529,9 @@ void *Controlador::hilo_controlador( Controlador * ptr )
 {
     ptr->controlador();
     return 0;
+}
+
+void Controlador::menos_recien_usado()
+{
+
 }
