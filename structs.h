@@ -1,5 +1,8 @@
 #include <vector>
 #include <pthread.h>
+#define LIBRE 'L'
+#define ESCRIBIENDO 'E'
+#define VALIDO 'V'
 
 struct Hilo
 {
@@ -56,11 +59,14 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
     int fin; //puntero donde se tiene que hacer el siguiente push 
     //bool solicitud_hilo; //me indica si un hilo quiere un bloque que esta en el buffer 
     BloqueDatos buffer[8];
+    pthread_mutex_t candado[8];
     pthread_barrier_t * barrera;
     
-    void pasar_barrera( pthread_barrier_t * barrera )
+    void inicializar( pthread_barrier_t * barrera )
     {
         this->barrera = barrera;
+        for( int i = 0; i < 8; ++i )
+            pthread_mutex_init( &candado[i], NULL );
     }
 
     void insertar(BloqueDatos bloque)
@@ -73,6 +79,7 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
 
     BloqueDatos sacar()
     {
+        pthread_mutex_lock( &candado[inicio] );
         buffer[inicio].estado = 'E'; //significa que se esta escribiendo 
         BloqueDatos bloque = buffer[inicio++];
         inicio = inicio % 8; //por las propiedades de arreglo circular
@@ -104,8 +111,21 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
         {
             if(buffer[i].bloque == num_bloque)
             {
-                //pthread_barrier_wait( barrera );
-                return i;
+                while( true )
+                {
+                    if( pthread_mutex_trylock( &candado[i] ) == 0 ) // se logra tomar el candado
+                    {
+                        if( buffer[i].estado == LIBRE )
+                            return -1;
+                        else if( buffer[i].estado == VALIDO )
+                            return i;
+                    }
+                    else // no se logra tomar el candado
+                    {
+                        // se espera en sincronizacion con el buffer victima
+                        pthread_barrier_wait( barrera );
+                    }
+                }
             }
         }
         return -1;

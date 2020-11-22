@@ -11,7 +11,7 @@ Controlador::~Controlador()
     
 }
 
-void Controlador::add(int x1, int x2, int x3){
+/*void Controlador::add(int x1, int x2, int x3){
     vector_hilos.hilos[0].registros[x1] = hilos[0].registros[x2] + hilos[0].registros[x3];
 }
 
@@ -94,7 +94,7 @@ void Controlador::jalr( int x1, int x2, int n )
     vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].PC; // x1 = PC
     vector_hilos.hilos[actual].PC = vector_hilos.hilos[actual].registros[x2] + n; // PC = x2+n
     //aumentar_reloj();
-}
+}*/
 
 void Controlador::FIN()
 {
@@ -108,7 +108,7 @@ void Controlador::aumentar_reloj()
 
 void Controlador::asociar(int codigo, int x, int y, int z) //Si no se ocupa un parametro para un metodo se pasa un cero y no se hace nada con el 
 {
-    switch (codigo)
+    /*switch (codigo)
     {
     case 19:
         addi(x,y,z);
@@ -154,7 +154,7 @@ void Controlador::asociar(int codigo, int x, int y, int z) //Si no se ocupa un p
         break;
     default:
         break;
-    }
+    }*/
 }
 
 void Controlador::buffer_victima()
@@ -164,7 +164,7 @@ void Controlador::buffer_victima()
     {
         if(senal_hilo_a_buffer.acquire())
         {
-            while(!buffer.vacio())
+            while(!buffer_vic.vacia())
             {
                 buffer_a_mem();
             }
@@ -175,7 +175,7 @@ void Controlador::buffer_victima()
 void Controlador::buffer_a_mem()
 {
     BloqueDatos victima = buffer_vic.sacar();
-    int direccion;
+    int direccion = victima.bloque * 2;
     for(int retrasos = 0; retrasos < 24; ++retrasos)
     {
          pthread_barrier_wait(&barrera);
@@ -185,6 +185,9 @@ void Controlador::buffer_a_mem()
             direccion = victima.bloque * 2;
             memoria.datos[direccion] = victima.palabra[0];
             memoria.datos[direccion + 1] = victima.palabra[1];
+            buffer_vic.buffer[victima.bloque].estado = LIBRE;
+            buffer_vic.buffer[victima.bloque].bloque = -1;
+            pthread_mutex_unlock( &buffer_vic.candado[victima.bloque] );
         }
     }        
 }
@@ -224,7 +227,12 @@ void Controlador::cargar_hilos()
         getline(std::cin,input);
         std::stringstream stream(input);
         if(stream >> num_hilillos)
+        {
             num_valido = 1;
+            Hilo h[num_hilillos];
+            for( int i = 0; i < num_hilillos; ++i )
+                vector_hilos.hilos.push_back( h[i] );
+        }
         else
             std::cout << "Número inválido, por favor trate de nuevo." << std::endl;
     }
@@ -264,6 +272,12 @@ void Controlador::cargar_hilos()
             delete cstr;
         }
     }
+    //Inicializacion de registros de cada hilo
+    for(int i = 0; i < vector_hilos.hilos.size(); ++i)
+    {
+        for(int j = 0; j < 32; ++j)
+            vector_hilos.hilos[i].registros[j] = 0;
+    }
     //lee archivos de texto dados por el usuario
     //conforme se leen se va cargando su contenido a la memoria de instrucciones y al arreglo de hilos.
     // Se pide el quantum
@@ -297,20 +311,15 @@ void Controlador::init_estructuras()
         cache.instrucciones[i].bloque = -1;
         cache.instrucciones[i].estado = INVALIDO;
     }
+    //init del buffer
+    buffer_vic.inicializar( &barrera );
     for(i = 0; i < 8; ++i)
     {
-        //init del buffer
         buffer_vic.buffer[i].palabra[0] = 0;
         buffer_vic.buffer[i].palabra[1] = 0;
         buffer_vic.buffer[i].bloque = -1;
         buffer_vic.buffer[i].estado = LIBRE; 
     }
-    /*for(i = 0; i < vector_hilos.longitud; ++i)
-    {
-        for(int j = 0; j < 32; ++j)
-            //Init de registros de cada hilo
-            vector_hilos.hilos[i].registros[j] = 0;
-    }*/
 }
 
 void Controlador::ejecutar_hilillo()
@@ -322,9 +331,10 @@ void Controlador::ejecutar_hilillo()
         Hilo actual = vector_hilos.hilos[vector_hilos.puntero_actual];
         // se carga al IR la instrucción que apunta el PC
         cargar( actual.PC, actual.IR, 'I' );
+        // se apunta a la siguiente direccion
+        actual.PC += 4;
         // se ejecuta la instrucción
         asociar( actual.IR[0], actual.IR[1], actual.IR[2], actual.IR[3] );
-        actual.PC += 4;
         // se guardan los cambios realizados al hilillo
         vector_hilos.hilos[vector_hilos.puntero_actual] = actual;
         // se aumenta contador de instrucciones ejecutadas por este hilillo
@@ -500,7 +510,7 @@ void Controlador::controlador()
 
 void Controlador::init_hilos()
 {
-    pthread_barrier_init (&barrera, NULL, 3);
+    pthread_barrier_init(&barrera, NULL, 3);
     hilos[0] = std::thread( hilo_controlador, this );
     hilos[1] = std::thread( hilo_hilillo, this );
     hilos[2] = std::thread( hilo_buffer, this );
