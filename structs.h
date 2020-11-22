@@ -1,4 +1,5 @@
 #include <vector>
+#include <pthread.h>
 
 struct Hilo
 {
@@ -55,6 +56,13 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
     int fin; //puntero donde se tiene que hacer el siguiente push 
     //bool solicitud_hilo; //me indica si un hilo quiere un bloque que esta en el buffer 
     BloqueDatos buffer[8];
+    pthread_barrier_t * barrera;
+    
+    void pasar_barrera( pthread_barrier_t * barrera )
+    {
+        this->barrera = barrera;
+    }
+
     void insertar(BloqueDatos bloque)
     {
         bloque.estado = 'V'; //valido 
@@ -96,6 +104,7 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
         {
             if(buffer[i].bloque == num_bloque)
             {
+                //pthread_barrier_wait( barrera );
                 return i;
             }
         }

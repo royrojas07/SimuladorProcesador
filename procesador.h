@@ -57,7 +57,8 @@ class Controlador
     int reloj;
     int quantum;
     int inst_ejecutadas;
-    Buffer buffer_vic; //cambiar nombre a futuro
+    pthread_barrier_t * barrera;
+    Buffer buffer_vic;
     Memoria memoria;
     Cache cache;
     Round_robin vector_hilos;
