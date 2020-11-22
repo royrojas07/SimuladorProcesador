@@ -1,8 +1,12 @@
 #include <vector>
 #include <pthread.h>
+#define INVALIDO 'I'
 #define LIBRE 'L'
 #define ESCRIBIENDO 'E'
+#define COMPARTIDO 'C'
 #define VALIDO 'V'
+#define MODIFICADO 'M'
+#define SUBIENDO 'S'
 
 struct Hilo
 {
@@ -71,7 +75,7 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
 
     void insertar(BloqueDatos bloque)
     {
-        bloque.estado = 'V'; //valido 
+        bloque.estado = VALIDO; //valido 
         buffer[fin++] = bloque;
         fin = fin % 8; //por propiedades de arreglo circular
         longitud += 1;
@@ -80,7 +84,11 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
     BloqueDatos sacar()
     {
         pthread_mutex_lock( &candado[inicio] );
-        buffer[inicio].estado = 'E'; //significa que se esta escribiendo 
+        while(buffer[buffer[inicio].estado] == SUBIENDO) //Magiver, comentarselo a los brooos
+        {
+            pthread_barrier_wait(&barrera);
+        }
+        buffer[inicio].estado = ESCRIBIENDO; //significa que se esta escribiendo 
         BloqueDatos bloque = buffer[inicio++];
         inicio = inicio % 8; //por las propiedades de arreglo circular
         longitud -= 1;
