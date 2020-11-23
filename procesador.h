@@ -15,6 +15,7 @@
 #include <string>
 #include <limits>
 #include <semaphore.h>
+#include <mutex> 
 #define NUM_THREADS 3
 #define INVALIDO 'I'
 #define LIBRE 'L'
@@ -72,6 +73,6 @@ class Controlador
     Round_robin vector_hilos;
     std::thread hilos[NUM_THREADS];
     pthread_barrier_t  barrera; 
-    std::binary_semaphore senal_hilo_a_buffer(0); //? Donde esta el copiado de bloque de cache a buffer
+    std::mutex senal_hilo_a_buffer; //? Donde esta el copiado de bloque de cache a buffer
 };
 #endif

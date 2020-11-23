@@ -3,6 +3,7 @@ Controlador::Controlador()
 {
     init_estructuras();
     cargar_hilos();
+    senal_hilo_a_buffer.lock();
     reloj = 0;
 }
 
@@ -159,12 +160,13 @@ void Controlador::asociar(int codigo, int x, int y, int z) //Si no se ocupa un p
     }*/
 }
 
+
 void Controlador::buffer_victima()
 {
     int longitud_buffer;
     while(true)
     {
-        if(senal_hilo_a_buffer.acquire())
+        if(senal_hilo_a_buffer.lock())
         {
             while(!buffer_vic.vacia())
             {
@@ -476,7 +478,7 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
                         insertado = true;
                         if(buffer_vic.vacio()) //si esta vacio le tengo que avisar al hilo del buffer que ahora hay algo
                         {
-                            senal_hilo_a_buffer.release();
+                            senal_hilo_a_buffer.unlock();
                         }
                         counter = 0;
                         while(counter < 4)
