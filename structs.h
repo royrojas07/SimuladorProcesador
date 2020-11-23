@@ -73,6 +73,8 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
         for( int i = 0; i < 8; ++i )
             pthread_mutex_init( &candado[i], NULL );
         longitud = 0;
+        inicio = 0;
+        fin = 0;
     }
 
     void insertar(BloqueDatos bloque)

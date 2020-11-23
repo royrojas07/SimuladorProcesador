@@ -366,8 +366,10 @@ void Controlador::ejecutar_hilillo()
     int i, j;
     std::cout << "cache de datos:"<<std::endl;
     for( int i = 0; i < 4; i++ )
-        for( int j = 0; j < 2; j++ )
-            std::cout << cache.datos[i].palabra[j] << " ";
+    {
+        std::cout << cache.datos[i].palabra[0] << " ";
+        std::cout << cache.datos[i].palabra[1] << std::endl;
+    }
     std::cout << std::endl;
     std::cout << "memoria de datos:"<<std::endl;
     for(i = 0; i < 96; ++i) 
@@ -590,6 +592,7 @@ void Controlador::escribir( int direccion, int palabra )
             puts("se sube de buffer");
             // se realiza la copia
             // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
+            buffer_vic.buffer[bloque_buffer].estado = SUBIENDO;
             bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4 ); // ? aqui no hay problemas
         }
         else // el bloque no estaba en el buffer
