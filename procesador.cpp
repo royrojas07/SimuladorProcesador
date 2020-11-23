@@ -11,18 +11,22 @@ Controlador::~Controlador()
     
 }
 
-/*void Controlador::add(int x1, int x2, int x3){
-    vector_hilos.hilos[0].registros[x1] = hilos[0].registros[x2] + hilos[0].registros[x3];
+void Controlador::add(int x1, int x2, int x3)
+{
+    int actual = vector_hilos.puntero_actual;
+    vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].registros[x2] + vector_hilos.hilos[actual].registros[x3];
 }
 
 void Controlador::addi(int x1, int x2, int n)
 {
-    hilos[0].registros[x1] = hilos[0].registros[x2] + n; //?? Ese 0 se tendria que sustituir por un entero que apunte al hilo actual
+    int actual = vector_hilos.puntero_actual;
+    vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].registros[x2] + n; //?? Ese 0 se tendria que sustituir por un entero que apunte al hilo actual
 }
 
 void Controlador::sub(int x1, int x2, int x3)
 {
-    hilos[0].registros[x1] = hilos[0].registros[x2] - hilos[0].registros[x3];
+    int actual = vector_hilos.puntero_actual;
+    vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].registros[x2] - vector_hilos.hilos[actual].registros[x3];
 }
 
 void Controlador::mul( int x1, int x2, int x3 )
@@ -30,55 +34,62 @@ void Controlador::mul( int x1, int x2, int x3 )
     int actual = vector_hilos.puntero_actual;
     vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].registros[x2]
             * vector_hilos.hilos[actual].registros[x3];
-    //aumentar_reloj();
 }
 
 void Controlador::div(int x1, int x2, int x3)
 {
-    hilos[0].registros[x1] = hilos[0].registros[x2] / hilos[0].registros[x3];
+    int actual = vector_hilos.puntero_actual;
+    vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].registros[x2] / vector_hilos.hilos[actual].registros[x3];
 }
 
 void Controlador::lw(int x1, int x2, int n)
 {
-    int direccion = hilos[0].registros[x2] + n;
+    int actual = vector_hilos.puntero_actual;
+    int direccion = vector_hilos.hilos[actual].registros[x2] + n;
     int* palabra;
     cargar(direccion,palabra);
-    hilos[0].registros[x1] = palabra; // x1 <- M[x2 + n]
+    vector_hilos.hilos[actual].registros[x1] = palabra; // x1 <- M[x2 + n]
 }
 
 void Controlador::sw(int x2, int x1, int n)
 {
-    int direccion = hilos[0].registros[x2] + n;
-    memoria.datos[direccion] = hilos[0].registros[x1];
+    int actual = vector_hilos.puntero_actual;
+    int direccion = vector_hilos.hilos[actual].registros[x2] + n;
+    escribir( direccion, vector_hilos.hilos[actual].registros[x1] );
 }
 
 void Controlador::beq(int x1, int x2, int n)
 {
-    if(hilos[0].registros[x1] == hilos[0].registros[x2])
-        hilos[0].PC += n*4;
+    int actual = vector_hilos.puntero_actual;
+    if(vector_hilos.hilos[actual].registros[x1] == vector_hilos.hilos[actual].registros[x2])
+        vector_hilos.hilos[actual].PC += n*4;
 }
 
 void Controlador::bne(int x1, int x2, int n)
 {
-    if(hilos[0].registros[x1] != hilos[0].registros[x2])
-        hilos[0].PC += n * 4; // PC <- n * 4
+    int actual = vector_hilos.puntero_actual;
+    if(vector_hilos.hilos[actual].registros[x1] != vector_hilos.hilos[actual].registros[x2])
+        vector_hilos.hilos[actual].PC += n * 4; // PC <- n * 4
 }
 
 void Controlador::lr( int x1, int x2 )
 {
     int actual = vector_hilos.puntero_actual;
     int dir = vector_hilos.hilos[actual].registros[x2];
-    //hilos[0].registros[x1] = mem( dir ); // x1 <- M[x2]
+    int palabra;
+    cargar( dir, &palabra );
+    vector_hilos.hilos[actual].registros[x1] = palabra; // x1 <- M[x2]
     vector_hilos.hilos[actual].RL = vector_hilos.hilos[actual].registros[x2]; // RL <- x2
-    //aumentar_reloj();
 }
 
 void Controlador::sc(int x2, int x1, int n)
 {
-    if(hilos[0].RL == n+x2){
-        memoria.datos[n + x2] = hilos[0].registros[x1];
+    int actual = vector_hilos.puntero_actual;
+    if(vector_hilos.hilos[actual].RL == n+vector_hilos.hilos[actual].registros[x2]){
+        escribir( n+vector_hilos.hilos[actual].registros[x2], vector_hilos.hilos[actual].registros[x1] );
+        //memoria.datos[n + x2] = vector_hilos.hilos[actual].registros[x1];
     }else{
-        hilos[0].registros[x1]=0;
+        vector_hilos.hilos[actual].registros[x1]=0;
     }
 }
 
@@ -87,7 +98,6 @@ void Controlador::jal( int x1, int n )
     int actual = vector_hilos.puntero_actual;
     vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].PC; // x1 <- PC
     vector_hilos.hilos[actual].PC += n; // PC <- PC+n
-    //aumentar_reloj();
 }
 
 void Controlador::jalr( int x1, int x2, int n )
@@ -95,12 +105,11 @@ void Controlador::jalr( int x1, int x2, int n )
     int actual = vector_hilos.puntero_actual;
     vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].PC; // x1 = PC
     vector_hilos.hilos[actual].PC = vector_hilos.hilos[actual].registros[x2] + n; // PC = x2+n
-    //aumentar_reloj();
-}*/
+}
 
 void Controlador::FIN()
 {
-
+    fin_de_hilillo = true;
 }
 
 void Controlador::aumentar_reloj() 
@@ -110,7 +119,7 @@ void Controlador::aumentar_reloj()
 
 void Controlador::asociar(int codigo, int x, int y, int z) //Si no se ocupa un parametro para un metodo se pasa un cero y no se hace nada con el 
 {
-    /*switch (codigo)
+    switch (codigo)
     {
     case 19:
         addi(x,y,z);
@@ -156,7 +165,7 @@ void Controlador::asociar(int codigo, int x, int y, int z) //Si no se ocupa un p
         break;
     default:
         break;
-    }*/
+    }
 }
 
 void Controlador::buffer_victima()
@@ -461,12 +470,12 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
         
         if(cache.datos[direc_reemplazo].estado == INVALIDO || cache.datos[direc_reemplazo].estado == COMPARTIDO)
         {
-            cache.datos[direc_reemplazo] = bloque; //se puede hacer esto?
+            cache.datos[direc_reemplazo] = *bloq_datos; //se puede hacer esto?
                                                     //La otra seria hacer dynamic cast y igualar cada una de la palabras                                        
         }
         else // estado del bloque en cache MODIFICADO
         {
-            direc_reemplazo_buff = buffer_vic.buscar(cache.datos[direc_reemplazo])
+            direc_reemplazo_buff = buffer_vic.buscar(cache.datos[direc_reemplazo].bloque);
             if(direc_reemplazo_buff == -1)
             {
                 while(!insertado)
@@ -474,7 +483,7 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
                     if(!buffer_vic.llena())
                     {
                         insertado = true;
-                        if(buffer_vic.vacio()) //si esta vacio le tengo que avisar al hilo del buffer que ahora hay algo
+                        if(buffer_vic.vacia()) //si esta vacio le tengo que avisar al hilo del buffer que ahora hay algo
                         {
                             senal_hilo_a_buffer.release();
                         }
@@ -482,7 +491,7 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
                         while(counter < 4)
                             pthread_barrier_wait(&barrera);
                         buffer_vic.insertar(cache.datos[direc_reemplazo]);
-                        cache.datos[direc_reemplazo] = bloque; //modif de la cache
+                        cache.datos[direc_reemplazo] = *bloq_datos; //modif de la cache
                     }
                     else
                     {
@@ -495,7 +504,7 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
                 while(counter < 4)
                     pthread_barrier_wait(&barrera);
                 buffer_vic.buffer[direc_reemplazo_buff] = cache.datos[direc_reemplazo]; //MERGING
-                cache.datos[direc_reemplazo] = bloque; //modif de la cache
+                cache.datos[direc_reemplazo] = *bloq_datos; //modif de la cache
             }
         }
         //Fijarme en los estados de la cache para ver si tengo que hacer merging o solo meter al buffer

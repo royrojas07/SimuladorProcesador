@@ -84,9 +84,9 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
     BloqueDatos sacar()
     {
         pthread_mutex_lock( &candado[inicio] );
-        while(buffer[buffer[inicio].estado] == SUBIENDO) //Magiver, comentarselo a los brooos
+        while(buffer[inicio].estado == SUBIENDO) //Magiver, comentarselo a los brooos
         {
-            pthread_barrier_wait(&barrera);
+            pthread_barrier_wait(barrera);
         }
         buffer[inicio].estado = ESCRIBIENDO; //significa que se esta escribiendo 
         BloqueDatos bloque = buffer[inicio++];

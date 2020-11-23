@@ -13,7 +13,7 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <limits>
+#include <climits>
 #include <semaphore.h>
 #define NUM_THREADS 3
 #define INVALIDO 'I'
@@ -66,12 +66,13 @@ class Controlador
     int reloj;
     int quantum;
     int inst_ejecutadas;
+    bool fin_de_hilillo;
     Buffer buffer_vic;
     Memoria memoria;
     Cache cache;
     Round_robin vector_hilos;
     std::thread hilos[NUM_THREADS];
-    pthread_barrier_t  barrera; 
-    std::binary_semaphore senal_hilo_a_buffer(0); //? Donde esta el copiado de bloque de cache a buffer
+    pthread_barrier_t barrera;
+    binary_semaphore senal_hilo_a_buffer(0); //? Donde esta el copiado de bloque de cache a buffer
 };
 #endif
