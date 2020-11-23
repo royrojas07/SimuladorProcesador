@@ -62,6 +62,7 @@ class Controlador
     int quantum;
     int inst_ejecutadas;
     bool fin_de_hilillo;
+    bool se_ejecuto_ins;
     Buffer buffer_vic;
     Memoria memoria;
     Cache cache;

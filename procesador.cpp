@@ -74,6 +74,7 @@ void Controlador::bne(int x1, int x2, int n)
     int actual = vector_hilos.puntero_actual;
     if(vector_hilos.hilos[actual].registros[x1] != vector_hilos.hilos[actual].registros[x2])
         vector_hilos.hilos[actual].PC += n * 4; // PC <- n * 4
+    std::cout << "BNE pc: " <<vector_hilos.hilos[actual].PC << std::endl;
 }
 
 void Controlador::lr( int x1, int x2 )
@@ -215,6 +216,7 @@ void Controlador::buffer_a_mem()
 
 void Controlador::cambio_contexto()
 {
+    vector_hilos.hilos[vector_hilos.puntero_actual].RL = -1;
     vector_hilos.puntero_actual = (vector_hilos.puntero_actual+1) % vector_hilos.hilos.size();
     inst_ejecutadas = 0;
 }
@@ -358,7 +360,7 @@ void Controlador::ejecutar_hilillo()
         asociar( vector_hilos.hilos[vector_hilos.puntero_actual].IR[0], vector_hilos.hilos[vector_hilos.puntero_actual].IR[1],
                 vector_hilos.hilos[vector_hilos.puntero_actual].IR[2], vector_hilos.hilos[vector_hilos.puntero_actual].IR[3] );
         // se aumenta contador de instrucciones ejecutadas por este hilillo
-        //inst_ejecutadas++;
+        inst_ejecutadas++;
         se_ejecuto_ins = true;
         pthread_barrier_wait(&barrera);
         // aca tendria que haber sincronizacion con hilo controlador (semaforo)
@@ -382,6 +384,7 @@ void Controlador::ejecutar_hilillo()
     for(i = 0; i < 640; ++i) 
         std::cout << memoria.instrucciones[i] << " ";
     std::cout << std::endl;
+    std::cout << "reloj: " << reloj<< std::endl;
 }
 
 void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
@@ -638,13 +641,13 @@ void Controlador::controlador()
                 std::cout << "CAMBIO DE CONTEXTO" << std::endl;
             }
         }
-        std::cout << "inst_ejecutads" << inst_ejecutadas << " _ant " << inst_ejecutadas_ant << std::endl;
+        //std::cout << "inst_ejecutads" << inst_ejecutadas << " _ant " << inst_ejecutadas_ant << std::endl;
         if( se_ejecuto_ins || cambio_de_contexto )
         {
             sem_post( &senal_ejecutar_a_controlador );
-            if( !cambio_de_contexto )
+            //if( !cambio_de_contexto )
                // inst_ejecutadas_ant++;
-               se_ejecuto_ins = false;
+            se_ejecuto_ins = false;
             cambio_de_contexto = false;
         }
     }
