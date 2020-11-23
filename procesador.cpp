@@ -119,6 +119,7 @@ void Controlador::aumentar_reloj()
 {
     pthread_barrier_wait(&barrera);
     ++reloj;
+    vector_hilos.hilos[vector_hilos.puntero_actual].tiempo_en_ejecucion++;
 }
 
 void Controlador::asociar(int codigo, int x, int y, int z) //Si no se ocupa un parametro para un metodo se pasa un cero y no se hace nada con el 
@@ -176,7 +177,7 @@ void Controlador::asociar(int codigo, int x, int y, int z) //Si no se ocupa un p
 void Controlador::buffer_victima()
 {
     int longitud_buffer;
-    while(true)
+    while( vector_hilos.hilos.size() != 0 )
     {
         if( !sem_trywait( &senal_hilo_a_buffer ) )
         {
@@ -192,12 +193,14 @@ void Controlador::buffer_victima()
 
 void Controlador::buffer_a_mem()
 {
+    std::cout << "BUFFER A ESCRIBIR A MEMORIA" << std::endl;
     BloqueDatos victima = buffer_vic.sacar();
     int direccion;
     int retrasos = 0;
     while(retrasos < 24)
     {
         pthread_barrier_wait(&barrera);
+        retrasos++;
     }
     direccion = victima.bloque * 2;
     memoria.datos[direccion] = victima.palabra[0];
@@ -240,12 +243,7 @@ void Controlador::cargar_hilos()
         getline(std::cin,input);
         std::stringstream stream(input);
         if(stream >> num_hilillos) // si el input es un numero valido
-        {
-            Hilo h[num_hilillos];
-            for( int i = 0; i < num_hilillos; ++i )
-                vector_hilos.hilos.push_back( h[i] );
             break;
-        }
         else
             std::cout << "Número inválido, por favor trate de nuevo." << std::endl; 
     }
@@ -345,20 +343,18 @@ void Controlador::ejecutar_hilillo()
     while( vector_hilos.hilos.size() != 0 )
     {
         // se treabaja con el hilo al que se apunta
-        Hilo actual = vector_hilos.hilos[vector_hilos.puntero_actual];
         // se carga al IR la instrucción que apunta el PC
-        std::cout << actual.PC << " Pc"<<std::endl;
-        cargar( actual.PC, actual.IR, 'I' );
-        puts("IR:");
+        //std::cout << vector_hilos.hilos[vector_hilos.puntero_actual].PC << " Pc"<<std::endl;
+        cargar( vector_hilos.hilos[vector_hilos.puntero_actual].PC, vector_hilos.hilos[vector_hilos.puntero_actual].IR, 'I' );
+        std::cout << "IR: ";
         for( int i = 0; i < 4; ++i )
-            std::cout << actual.IR[i] << " ";
+            std::cout << vector_hilos.hilos[vector_hilos.puntero_actual].IR[i] << " ";
         std::cout << std::endl;
         // se apunta a la siguiente direccion
-        actual.PC += 4;
+        vector_hilos.hilos[vector_hilos.puntero_actual].PC += 4;
         // se ejecuta la instrucción
-        asociar( actual.IR[0], actual.IR[1], actual.IR[2], actual.IR[3] );
-        // se guardan los cambios realizados al hilillo
-        vector_hilos.hilos[vector_hilos.puntero_actual] = actual;
+        asociar( vector_hilos.hilos[vector_hilos.puntero_actual].IR[0], vector_hilos.hilos[vector_hilos.puntero_actual].IR[1],
+                vector_hilos.hilos[vector_hilos.puntero_actual].IR[2], vector_hilos.hilos[vector_hilos.puntero_actual].IR[3] );
         // se aumenta contador de instrucciones ejecutadas por este hilillo
         inst_ejecutadas++;
         pthread_barrier_wait(&barrera);
@@ -368,9 +364,16 @@ void Controlador::ejecutar_hilillo()
     }
     puts("LLEGUE :D");
     int i, j;
+    std::cout << "cache de datos:"<<std::endl;
+    for( int i = 0; i < 4; i++ )
+        for( int j = 0; j < 2; j++ )
+            std::cout << cache.datos[i].palabra[j] << " ";
+    std::cout << std::endl;
+    std::cout << "memoria de datos:"<<std::endl;
     for(i = 0; i < 96; ++i) 
         std::cout << memoria.datos[i] << " "; //Init de memoria de datos
     std::cout << std::endl;
+    std::cout << "memoria de inst:"<<std::endl;
     for(i = 0; i < 640; ++i) 
         std::cout << memoria.instrucciones[i] << " ";
     std::cout << std::endl;
@@ -381,10 +384,10 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
     // se obtienen bloque y palabra a los que pertenece la dir. de memoria
     int num_bloque = floor(direccion/8);
     int num_palabra = floor(direccion/4);
-    std::cout << num_bloque << " " << num_palabra << std::endl;
+    //std::cout << num_bloque << " " << num_palabra << std::endl;
     if( memoria == 'I' ) // cache de instrucciones
     {
-        puts("cargar");
+        puts("cargando una instruccion");
         // mapeo directo
         if( cache.instrucciones[num_bloque%8].bloque != num_bloque ) // fallo de lectura
         {
@@ -406,6 +409,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
     }
     else // cache de datos
     {
+        puts("cargando datos");
         int bloque_cache = buscar_en_cache_datos( num_bloque );
         if( bloque_cache == -1 ) // fallo de lectura de cache de datos
         {
@@ -477,6 +481,7 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
     int direc_reemplazo;
     int direc_reemplazo_buff;
     bool insertado = false;
+    bool estaba_vacia = false;
     BloqueDatos * bloq_datos = dynamic_cast< BloqueDatos * >( bloque );
     // asociativa o LRU?
     // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
@@ -484,7 +489,7 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
     {
         // seria LRU porque con ultimo_uso = -1 ya se sabe si el bloque esta en invalido
         // lru()
-        direc_reemplazo = menos_recien_usado(); 
+        direc_reemplazo = menos_recien_usado( conjunto ); 
 
         while(counter < retraso)
         {
@@ -499,6 +504,7 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
         }
         else // estado del bloque en cache MODIFICADO
         {
+            puts("SE VA A REEMPLZAR A BUFFER");
             direc_reemplazo_buff = buffer_vic.buscar(cache.datos[direc_reemplazo].bloque);
             if(direc_reemplazo_buff == -1)
             {
@@ -508,13 +514,19 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
                     {
                         insertado = true;
                         if(buffer_vic.vacia()) //si esta vacio le tengo que avisar al hilo del buffer que ahora hay algo
-                        {
-                            sem_post( &senal_hilo_a_buffer );
-                        }
+                            estaba_vacia = true;
                         counter = 0;
                         while(counter < 4)
+                        {
                             pthread_barrier_wait(&barrera);
+                            counter++;
+                        }
                         buffer_vic.insertar(cache.datos[direc_reemplazo]);
+                        if( estaba_vacia )
+                        {
+                            sem_post( &senal_hilo_a_buffer );
+                            estaba_vacia = false;
+                        }
                         cache.datos[direc_reemplazo] = *bloq_datos; //modif de la cache
                     }
                     else
@@ -525,26 +537,33 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
             }
             else
             {
+                counter = 0;
+                buffer_vic.buffer[direc_reemplazo_buff].estado = MERGING;
                 while(counter < 4)
+                {
                     pthread_barrier_wait(&barrera);
+                    counter++;
+                }
                 buffer_vic.buffer[direc_reemplazo_buff] = cache.datos[direc_reemplazo]; //MERGING
+                buffer_vic.buffer[direc_reemplazo_buff].estado = VALIDO;
                 cache.datos[direc_reemplazo] = *bloq_datos; //modif de la cache
             }
         }
         //Fijarme en los estados de la cache para ver si tengo que hacer merging o solo meter al buffer
         // :-)
+        std::cout << "SE REEMPLAZO BLOQUE DE DATOS " << direc_reemplazo << std::endl;
     }
     else// se copia a cache de instrucciones
     {
         BloqueInstruc * bloq_instr = dynamic_cast< BloqueInstruc * >( bloque );
-            // falta el retraso !!!!!
         while(counter < retraso)
         {
             pthread_barrier_wait(&barrera);
             ++counter;
         }
-            // reemplazo de mapeo directo
+        // reemplazo de mapeo directo
         cache.instrucciones[num_bloque%8] = *bloq_instr;
+        direc_reemplazo = num_bloque%8;
     }
     if(retraso == 4)
     //Si ocurrio un retraso de 4 es que se estaba copiando de buffer, por lo que se coloco estado de ESCRIBIENDO en el buffer
@@ -588,29 +607,37 @@ void Controlador::escribir( int direccion, int palabra )
     // la primer palabra de su bloque, si no, es la segunda
     int palabra_pos = (num_palabra % 2) ? 1:0;
     cache.datos[bloque_cache].palabra[palabra_pos] = palabra;
+    cache.datos[bloque_cache].estado = MODIFICADO;
+    cache.datos[bloque_cache].ultimo_uso = reloj;
 }
 
 void Controlador::controlador()
 {
     int inst_ejecutadas_ant = 0;
     bool cambio_de_contexto = false;
+    fin_de_hilillo = false;
     while(true){
         aumentar_reloj();
         if(inst_ejecutadas == quantum || fin_de_hilillo )
         {
-            puts("hola cambio");
             if(fin_de_hilillo){
                 vector_hilos.hilos.erase(vector_hilos.hilos.begin()+(vector_hilos.puntero_actual-1));
                 fin_de_hilillo = false;
             }
-            cambio_contexto();
-            cambio_de_contexto = true;
-            inst_ejecutadas_ant = 0;
+            if( vector_hilos.hilos.size() != 0 )
+            {
+                cambio_contexto();
+                cambio_de_contexto = true;
+                inst_ejecutadas_ant = 0;
+                std::cout << "CAMBIO DE CONTEXTO" << std::endl;
+            }
         }
+        std::cout << "inst_ejecutads" << inst_ejecutadas << " _ant " << inst_ejecutadas_ant << std::endl;
         if( inst_ejecutadas_ant < inst_ejecutadas || cambio_de_contexto )
         {
             sem_post( &senal_ejecutar_a_controlador );
-            inst_ejecutadas_ant++;
+            if( !cambio_de_contexto )
+                inst_ejecutadas_ant++;
             cambio_de_contexto = false;
         }
     }
@@ -649,16 +676,16 @@ void *Controlador::hilo_controlador( Controlador * ptr )
     return 0;
 }
 
-int Controlador::menos_recien_usado() 
+int Controlador::menos_recien_usado( int conjunto ) 
 {
     int menor = INT_MAX; //numero alto como inicializacion
     int direccion; 
-    for(int i = 0; i < 4; ++i)
+    for(int i = 0; i < 2; ++i)
     {
-        if(cache.datos[i].ultimo_uso < menor)
+        if(cache.datos[(conjunto*2)+i].ultimo_uso < menor)
         {
-            menor = cache.datos[i].ultimo_uso;
-            direccion = i;
+            menor = cache.datos[(conjunto*2)+i].ultimo_uso;
+            direccion = (conjunto*2)+i;
         }
     }
     return direccion;

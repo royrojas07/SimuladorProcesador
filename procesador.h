@@ -15,13 +15,7 @@
 #include <string>
 #include <climits>
 #include <semaphore.h>
-#include <mutex> 
-#define NUM_THREADS 3
-#define INVALIDO 'I'
-#define LIBRE 'L'
-#define ESCRIBIENDO 'E'
-#define COMPARTIDO 'C'
-#define MODIFICADO 'M'
+#include <mutex>
 
 class Controlador
 {
@@ -61,7 +55,7 @@ class Controlador
     int copiar_a_cache( Bloque * bloque, int retraso );
     void buffer_a_mem();
     int buscar_en_cache_datos( int num_bloque );
-    int menos_recien_usado();
+    int menos_recien_usado( int conjunto );
 
     private:
     int reloj;

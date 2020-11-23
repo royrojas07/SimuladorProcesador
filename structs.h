@@ -7,6 +7,8 @@
 #define VALIDO 'V'
 #define MODIFICADO 'M'
 #define SUBIENDO 'S'
+#define MERGING 'W'
+#define NUM_THREADS 3
 
 struct Hilo
 {
@@ -52,7 +54,6 @@ struct Cache
 struct Round_robin // Carlos
 {
     int puntero_actual;
-    int longitud;
     std::vector<Hilo> hilos;
 };
 
@@ -71,6 +72,7 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
         this->barrera = barrera;
         for( int i = 0; i < 8; ++i )
             pthread_mutex_init( &candado[i], NULL );
+        longitud = 0;
     }
 
     void insertar(BloqueDatos bloque)
@@ -84,7 +86,7 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
     BloqueDatos sacar()
     {
         pthread_mutex_lock( &candado[inicio] );
-        while(buffer[inicio].estado == SUBIENDO) //Magiver, comentarselo a los brooos
+        while(buffer[inicio].estado == SUBIENDO || buffer[inicio].estado == MERGING) //Magiver, comentarselo a los brooos
         {
             pthread_barrier_wait(barrera);
         }
