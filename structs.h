@@ -1,5 +1,6 @@
 #include <vector>
 #include <pthread.h>
+#include <cstdio>
 #define INVALIDO 'I'
 #define LIBRE 'L'
 #define ESCRIBIENDO 'E'
@@ -73,6 +74,8 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
         for( int i = 0; i < 8; ++i )
             pthread_mutex_init( &candado[i], NULL );
         longitud = 0;
+        inicio = 0;
+        fin = 0;
     }
 
     void insertar(BloqueDatos bloque)
@@ -125,6 +128,7 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
                 {
                     if( pthread_mutex_trylock( &candado[i] ) == 0 ) // se logra tomar el candado
                     {
+                        pthread_mutex_unlock(&candado[i]);
                         if( buffer[i].estado == LIBRE )
                             return -1;
                         else if( buffer[i].estado == VALIDO )
