@@ -7,6 +7,7 @@ Controlador::Controlador()
     sem_init( &senal_ejecutar_a_controlador, 0, 0 );
     reloj = 0;
     inst_ejecutadas = 0;
+    se_ejecuto_ins = false;
 }
 
 Controlador::~Controlador()
@@ -203,11 +204,12 @@ void Controlador::buffer_a_mem()
         retrasos++;
     }
     direccion = victima.bloque * 2;
+    printf("BLOQUEEEEEE  %d",victima.bloque);
     memoria.datos[direccion] = victima.palabra[0];
     memoria.datos[direccion + 1] = victima.palabra[1];
-    buffer_vic.buffer[victima.bloque].estado = LIBRE;
-    buffer_vic.buffer[victima.bloque].bloque = -1;
-    pthread_mutex_unlock( &buffer_vic.candado[victima.bloque] );
+    buffer_vic.buffer[buffer_vic.inicio - 1].estado = LIBRE;
+    buffer_vic.buffer[buffer_vic.inicio - 1].bloque = -1;
+    pthread_mutex_unlock( &buffer_vic.candado[buffer_vic.inicio - 1] );
 }
     
 
@@ -356,7 +358,8 @@ void Controlador::ejecutar_hilillo()
         asociar( vector_hilos.hilos[vector_hilos.puntero_actual].IR[0], vector_hilos.hilos[vector_hilos.puntero_actual].IR[1],
                 vector_hilos.hilos[vector_hilos.puntero_actual].IR[2], vector_hilos.hilos[vector_hilos.puntero_actual].IR[3] );
         // se aumenta contador de instrucciones ejecutadas por este hilillo
-        inst_ejecutadas++;
+        //inst_ejecutadas++;
+        se_ejecuto_ins = true;
         pthread_barrier_wait(&barrera);
         // aca tendria que haber sincronizacion con hilo controlador (semaforo)
         // para seguir con la siguiente inst. o siguiente hilo
@@ -631,16 +634,17 @@ void Controlador::controlador()
             {
                 cambio_contexto();
                 cambio_de_contexto = true;
-                inst_ejecutadas_ant = 0;
+                //inst_ejecutadas_ant = 0;
                 std::cout << "CAMBIO DE CONTEXTO" << std::endl;
             }
         }
         std::cout << "inst_ejecutads" << inst_ejecutadas << " _ant " << inst_ejecutadas_ant << std::endl;
-        if( inst_ejecutadas_ant < inst_ejecutadas || cambio_de_contexto )
+        if( se_ejecuto_ins || cambio_de_contexto )
         {
             sem_post( &senal_ejecutar_a_controlador );
             if( !cambio_de_contexto )
-                inst_ejecutadas_ant++;
+               // inst_ejecutadas_ant++;
+               se_ejecuto_ins = false;
             cambio_de_contexto = false;
         }
     }
