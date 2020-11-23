@@ -3,7 +3,10 @@ Controlador::Controlador()
 {
     init_estructuras();
     cargar_hilos();
+    sem_init( &senal_hilo_a_buffer, 0, 0 );
+    sem_init( &senal_ejecutar_a_controlador, 0, 0 );
     reloj = 0;
+    inst_ejecutadas = 0;
 }
 
 Controlador::~Controlador()
@@ -48,7 +51,7 @@ void Controlador::lw(int x1, int x2, int n)
     int direccion = vector_hilos.hilos[actual].registros[x2] + n;
     int* palabra;
     cargar(direccion,palabra);
-    vector_hilos.hilos[actual].registros[x1] = palabra; // x1 <- M[x2 + n]
+    vector_hilos.hilos[actual].registros[x1] = *palabra; // x1 <- M[x2 + n]
 }
 
 void Controlador::sw(int x2, int x1, int n)
@@ -114,6 +117,7 @@ void Controlador::FIN()
 
 void Controlador::aumentar_reloj() 
 {
+    pthread_barrier_wait(&barrera);
     ++reloj;
 }
 
@@ -149,7 +153,7 @@ void Controlador::asociar(int codigo, int x, int y, int z) //Si no se ocupa un p
         bne(x,y,z);
         break;
     case 51:
-        lr(x,y,z);
+        lr(x,y);
         break;
     case 52:
         sc(x,y,z);
@@ -168,18 +172,21 @@ void Controlador::asociar(int codigo, int x, int y, int z) //Si no se ocupa un p
     }
 }
 
+
 void Controlador::buffer_victima()
 {
     int longitud_buffer;
     while(true)
     {
-        if(senal_hilo_a_buffer.acquire())
+        if( !sem_trywait( &senal_hilo_a_buffer ) )
         {
             while(!buffer_vic.vacia())
             {
                 buffer_a_mem();
             }
-        }   
+        }
+        else
+            pthread_barrier_wait( &barrera );
     }
 }
 
@@ -203,92 +210,94 @@ void Controlador::buffer_a_mem()
 
 void Controlador::cambio_contexto()
 {
-    vector_hilos.puntero_actual = (vector_hilos.puntero_actual+1) % vector_hilos.longitud;
+    vector_hilos.puntero_actual = (vector_hilos.puntero_actual+1) % vector_hilos.hilos.size();
     inst_ejecutadas = 0;
 }
 
 void Controlador::cargar_hilos()
 {
-    //pedir el quantum, ver si cambiar lo de pedir por una ventanilla 
-    std::string input = "";
+    //pedir el quantum
+    std::string input = ""; //variable que va a guardar el input del usuario
     int quantum = 0;
     std::cout << "De cuantos ciclos de reloj va a ser el quantum? Escriba un número." << std::endl;
-    while(true){
+    while(true)
+    {
         getline(std::cin,input);
         std::stringstream stream(input);
-        if(stream >> quantum)
+        if(stream >> quantum) //si el input es un numero valido
             break;
         else
             std::cout << "Número inválido, por favor trate de nuevo." <<std::endl;
     }
-
-    std::cout << "El quantum va a ser de " << quantum << " ciclos de reloj." << std::endl;
-
+    this->quantum = quantum;
+    std::cout << "El quantum va a ser de " << quantum << " ciclos de reloj." << std::endl; //print para confirmar el quantum
     
-    //std::string nombre_archivo; /*arreglo de nombres de archivos? preguntar como manejarlo, parametros?*/
-    
-    //pedir la cantidad de hilillos que se van a inicializar, ver si cambiar lo de pedir por una ventanilla 
+    //pedir la cantidad de hilillos que se van a inicializar
     int num_hilillos = 0;
-    int num_valido = 0;
-    std::cout << "Cuantos hilillos va a inicializar? Escriba un número." << std::endl;
-    while(!num_valido){
+    std::cout << "Cuantos hilillos va a inicializar? Escriba un número." << std::endl; 
+    while(true)
+    {
         getline(std::cin,input);
         std::stringstream stream(input);
-        if(stream >> num_hilillos)
+        if(stream >> num_hilillos) // si el input es un numero valido
         {
-            num_valido = 1;
             Hilo h[num_hilillos];
             for( int i = 0; i < num_hilillos; ++i )
                 vector_hilos.hilos.push_back( h[i] );
+            break;
         }
         else
-            std::cout << "Número inválido, por favor trate de nuevo." << std::endl;
+            std::cout << "Número inválido, por favor trate de nuevo." << std::endl; 
     }
     
-    std::cout << "Se van a inicializar " << num_hilillos << " hilillos.";
-    for(int i = 0; i < num_hilillos; i++){
+    std::cout << "Se van a inicializar " << num_hilillos << " hilillos." << std::endl; //print para confirmar la cantidad de hilillos
+    int puntero_memoria_instrucciones = 0;
+    for(int i = 0; i < num_hilillos; i++)
+    {
         int archivo_valido = 0;
-        while(!archivo_valido){
-            std::cout << "Escriba la ruta del archivo en donde se encuentran las instrucciones del hilillo número " << i + 1 << "." << std::endl;
-            std::getline(std::cin,input);
-            std::ifstream test(input);
-            if(!test){
-                std::cout << "Ese archivo no existe, trate de nuevo" << std::endl;
-            }
-            else
+        while(!archivo_valido)
+        {
+            std::cout << "Escriba la ruta del archivo en donde se encuentran las instrucciones del hilillo número " << i + 1 << "." << std::endl; //pide la ruta del archivo al usuario
+            std::getline(std::cin,input); //para que el usuario digite la ruta
+            std::ifstream test(input); //se trata de abrir un archivo con esa ruta
+            if(!test) //si la ruta no abre ningun archivo
             {
-                std::cout << "Ruta de archivo válida" << std::endl;
-                archivo_valido = 1;
-                test.close();
+                std::cout << "Ese archivo no existe, trate de nuevo" << std::endl; //le dice al usuario que no hay ningun archivo con esa ruta
+            }
+            else//si la ruta abre un archivo
+            {
+                std::cout << "Ruta de archivo válida" << std::endl; //se avisa que es una ruta valida
+                archivo_valido = 1; //se pone esta variable en 1 para salir del ciclo
+                test.close(); //se cierra el archivo que se usó para probar
             }
         }
-        std::string linea_instruccion;
-        std::ifstream archivo_leido(input);
-        int puntero_memoria_instrucciones = 0;
-        //registrar el numero del puntero de memoria de instrucciones en el que empiezan las instrucciones por hilillo ****
-        while (std::getline(archivo_leido, linea_instruccion)) {
-            //std::cout << linea_instruccion << std::endl; // para pruebas
-            char *cstr = new char[linea_instruccion.length() + 1];
-            strcpy(cstr, linea_instruccion.c_str());
-            char* parte_instruccion= strtok(cstr, " ");
-            while(parte_instruccion != NULL){
-                int parte_instruccion_int = atoi(parte_instruccion);
-                memoria.instrucciones[puntero_memoria_instrucciones] = parte_instruccion_int;
-                parte_instruccion = strtok(NULL, " "); //si no sirve probar con NULL
-                puntero_memoria_instrucciones++;
+        std::string linea_instruccion; //variable donde se va a guardar una linea de instruccion
+        std::ifstream archivo_leido(input); // se abre el archivo que el usuario especificó anteriormente
+        Hilo hilo_actual; //se crea el hilo 
+        //ver si hay que inicializar más los hilos o si hay que usar hilos que ya existen
+        vector_hilos.hilos.push_back(hilo_actual);
+        vector_hilos.hilos[i].PC = puntero_memoria_instrucciones+384; //registra el numero del puntero de memoria de instrucciones en el que empiezan las instrucciones del hilillo ****
+        while (std::getline (archivo_leido, linea_instruccion))  //mientras que haya lineas que leer en el archivo
+        {
+            char *cstr = new char[linea_instruccion.length() + 1]; //se crea una variable cstr para guardar el string linea_instruccion convertido a char*
+            strcpy(cstr,linea_instruccion.c_str()); //se copia a esa variable porque el metodo linea_instruccio.c_str devuelve un char * estático
+            char* parte_instruccion= strtok(cstr, " "); //se separa la instrucción por espacios blancos
+            while(parte_instruccion != NULL){ //mientras que haya partes de instruccion que separar
+                int parte_instruccion_int = atoi(parte_instruccion); //se convierte esa parte de instruccion a int
+                memoria.instrucciones[puntero_memoria_instrucciones] = parte_instruccion_int;// se guarda en la memoria de instrucciones
+                parte_instruccion = strtok(NULL, " "); // se sigue separando la instruccion en partes de instrucción
+                puntero_memoria_instrucciones++; //se aumenta el puntero de memoria de instrucciones para guardar el siguiente pedazo de instrucción
             }
-            delete cstr;
+            delete cstr; //se borra la variable inicializada anteriormente
         }
     }
-    //Inicializacion de registros de cada hilo
-    for(int i = 0; i < vector_hilos.hilos.size(); ++i)
+    // init de registros de hilillos
+    for( int i = 0; i < num_hilillos; ++i )
     {
-        for(int j = 0; j < 32; ++j)
+        for( int j = 0; j < 32; ++j )
             vector_hilos.hilos[i].registros[j] = 0;
     }
-    //lee archivos de texto dados por el usuario
-    //conforme se leen se va cargando su contenido a la memoria de instrucciones y al arreglo de hilos.
-    // Se pide el quantum
+    vector_hilos.puntero_actual = 0;
 }
 
 void Controlador::init_estructuras()
@@ -338,7 +347,12 @@ void Controlador::ejecutar_hilillo()
         // se treabaja con el hilo al que se apunta
         Hilo actual = vector_hilos.hilos[vector_hilos.puntero_actual];
         // se carga al IR la instrucción que apunta el PC
+        std::cout << actual.PC << " Pc"<<std::endl;
         cargar( actual.PC, actual.IR, 'I' );
+        puts("IR:");
+        for( int i = 0; i < 4; ++i )
+            std::cout << actual.IR[i] << " ";
+        std::cout << std::endl;
         // se apunta a la siguiente direccion
         actual.PC += 4;
         // se ejecuta la instrucción
@@ -350,7 +364,16 @@ void Controlador::ejecutar_hilillo()
         pthread_barrier_wait(&barrera);
         // aca tendria que haber sincronizacion con hilo controlador (semaforo)
         // para seguir con la siguiente inst. o siguiente hilo
+        sem_wait( &senal_ejecutar_a_controlador );
     }
+    puts("LLEGUE :D");
+    int i, j;
+    for(i = 0; i < 96; ++i) 
+        std::cout << memoria.datos[i] << " "; //Init de memoria de datos
+    std::cout << std::endl;
+    for(i = 0; i < 640; ++i) 
+        std::cout << memoria.instrucciones[i] << " ";
+    std::cout << std::endl;
 }
 
 void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
@@ -361,6 +384,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
     std::cout << num_bloque << " " << num_palabra << std::endl;
     if( memoria == 'I' ) // cache de instrucciones
     {
+        puts("cargar");
         // mapeo directo
         if( cache.instrucciones[num_bloque%8].bloque != num_bloque ) // fallo de lectura
         {
@@ -392,7 +416,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
             {
                 // se realiza la copia
                 // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
-                buffer_vic.buffer[bloque_buffer].estado = ESCRIBIENDO;
+                buffer_vic.buffer[bloque_buffer].estado = SUBIENDO;
                 bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4 ); // ? aqui no hay problemas
             }
             else // el bloque no estaba en el buffer
@@ -485,7 +509,7 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
                         insertado = true;
                         if(buffer_vic.vacia()) //si esta vacio le tengo que avisar al hilo del buffer que ahora hay algo
                         {
-                            senal_hilo_a_buffer.release();
+                            sem_post( &senal_hilo_a_buffer );
                         }
                         counter = 0;
                         while(counter < 4)
@@ -531,23 +555,27 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
 
 void Controlador::escribir( int direccion, int palabra )
 {
+    puts("escribo");
     // se obtienen bloque y palabra a los que pertenece la dir. de memoria
     int num_bloque = floor(direccion/8);
     int num_palabra = floor(direccion/4);
     int bloque_cache = buscar_en_cache_datos( num_bloque );
     if( bloque_cache == -1 ) // fallo de escritura en cache
     {
+        puts("fallo de cache");
         // buscar en el buffer victima
         // aqui se duraria la espera por si el bloque esta siendo copiado a memoria
         int bloque_buffer = buffer_vic.buscar( num_bloque );
         if( bloque_buffer != -1 )
         {
+            puts("se sube de buffer");
             // se realiza la copia
             // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
             bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4 ); // ? aqui no hay problemas
         }
         else // el bloque no estaba en el buffer
         {
+            puts("se sube de memoria prin.");
             BloqueDatos bloque_datos;
             cargar_de_mem_principal( num_bloque, bloque_datos.palabra );
             bloque_datos.bloque = num_bloque;
@@ -564,7 +592,28 @@ void Controlador::escribir( int direccion, int palabra )
 
 void Controlador::controlador()
 {
-
+    int inst_ejecutadas_ant = 0;
+    bool cambio_de_contexto = false;
+    while(true){
+        aumentar_reloj();
+        if(inst_ejecutadas == quantum || fin_de_hilillo )
+        {
+            puts("hola cambio");
+            if(fin_de_hilillo){
+                vector_hilos.hilos.erase(vector_hilos.hilos.begin()+(vector_hilos.puntero_actual-1));
+                fin_de_hilillo = false;
+            }
+            cambio_contexto();
+            cambio_de_contexto = true;
+            inst_ejecutadas_ant = 0;
+        }
+        if( inst_ejecutadas_ant < inst_ejecutadas || cambio_de_contexto )
+        {
+            sem_post( &senal_ejecutar_a_controlador );
+            inst_ejecutadas_ant++;
+            cambio_de_contexto = false;
+        }
+    }
 }
 
 void Controlador::init_hilos()

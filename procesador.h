@@ -15,6 +15,7 @@
 #include <string>
 #include <climits>
 #include <semaphore.h>
+#include <mutex> 
 #define NUM_THREADS 3
 #define INVALIDO 'I'
 #define LIBRE 'L'
@@ -36,7 +37,7 @@ class Controlador
     static void * hilo_controlador( Controlador * ptr );
     void controlador(); // metodo que realiza cambios de contexto, se encarga del manejo del reloj y quantum
     void cambio_contexto(); // No complicado  //Carlos
-    /*void add(int x1, int x2, int x3); //fabian
+    void add(int x1, int x2, int x3); //fabian
     void addi(int x1, int x2, int n); //carlos
     void sub(int x1, int x2, int x3); //carlos
     void mul( int x1, int x2, int x3 ); //roy
@@ -48,7 +49,7 @@ class Controlador
     void lr( int x1, int x2 ); //roy
     void sc(int x2, int x1, int n); //fabian
     void jal( int x1, int n ); //roy
-    void jalr( int x1, int x2, int n );//roy */
+    void jalr( int x1, int x2, int n );//roy
     void FIN(); // En este metodo se deberia restar la longitud del vector de hilos
     void cargar_hilos(); // este puede ser el metodo que lea de los txt y podria ir en el constructor de Controlador //Fabian
     void init_estructuras();// podria llamarse en el constructor igualmente //Carlos
@@ -72,7 +73,8 @@ class Controlador
     Cache cache;
     Round_robin vector_hilos;
     std::thread hilos[NUM_THREADS];
-    pthread_barrier_t barrera;
-    binary_semaphore senal_hilo_a_buffer(0); //? Donde esta el copiado de bloque de cache a buffer
+    pthread_barrier_t  barrera; 
+    sem_t senal_hilo_a_buffer; //? Donde esta el copiado de bloque de cache a buffer
+    sem_t senal_ejecutar_a_controlador;
 };
 #endif
