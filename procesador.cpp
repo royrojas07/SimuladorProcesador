@@ -260,6 +260,8 @@ void Controlador::cargar_hilos()
     std::cout << "Cuantos hilillos va a inicializar? Escriba un número." << std::endl; 
     while(true)
     {
+        getline(std::cin,input);
+        std::stringstream stream(input);
         bool es_numero = true;//boolean que se vuelve falso si el input no es un número
         for(int i = 0; i < input.length(); i++){ //se revisan los caracteres del numero para ver si corresponden a digitos, sino se considera un input inválido
             if((input.at(i) < 48 || input.at(i) > 57){
