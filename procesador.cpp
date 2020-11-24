@@ -189,7 +189,8 @@ void Controlador::buffer_victima()
             }
         }
         else
-            pthread_barrier_wait( &barrera );
+            if(vector_hilos.hilos.size() != 0)
+                pthread_barrier_wait( &barrera );
     }
 }
 
@@ -205,7 +206,6 @@ void Controlador::buffer_a_mem()
         retrasos++;
     }
     direccion = victima.bloque * 2;
-    printf("BLOQUEEEEEE  %d",victima.bloque);
     memoria.datos[direccion] = victima.palabra[0];
     memoria.datos[direccion + 1] = victima.palabra[1];
     buffer_vic.buffer[buffer_vic.inicio - 1].estado = LIBRE;
@@ -625,7 +625,7 @@ void Controlador::controlador()
     int inst_ejecutadas_ant = 0;
     bool cambio_de_contexto = false;
     fin_de_hilillo = false;
-    while(true){
+    while(vector_hilos.hilos.size() != 0 ){
         aumentar_reloj();
         if(inst_ejecutadas == quantum || fin_de_hilillo )
         {
@@ -665,7 +665,7 @@ void Controlador::fin_hilos()
 {
     hilos[0].join();
     hilos[1].join();
-    hilos[2].join();
+    hilos[2].join(); 
 }
 
 void *Controlador::hilo_buffer( Controlador * ptr )
