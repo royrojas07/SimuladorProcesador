@@ -402,7 +402,22 @@ void Controlador::ejecutar_hilillo()
     for(i = 0; i < 640; ++i) 
         std::cout << memoria.instrucciones[i] << " ";
     std::cout << std::endl;
-    std::cout << "reloj: " << reloj<< std::endl;
+    std::cout << "buffer victima: " << std::endl;
+    for( int i = 0; i < 8; ++i )
+    {
+        std::cout << buffer_vic.buffer[i].palabra[0]<< " ";
+        std::cout << buffer_vic.buffer[i].palabra[1] <<std::endl;
+    }
+    std::cout << "RELOJ: " << reloj<< std::endl;
+    std::cout << "HILILLOS: " << std::endl;
+    for( int i = 0; i < historial_hilos.size(); ++i )
+    {
+        std::cout << "REGISTROS: " << std::endl;
+        for( int j = 0; j < 32; ++j )
+            std::cout << historial_hilos[i].registros[j] << " ";
+        std::cout << "PC "<<historial_hilos[i].PC << std::endl;
+        std::cout << "TIEMPO EJECUCION "<<historial_hilos[i].tiempo_en_ejecucion << std::endl;
+    }
 }
 
 void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
@@ -661,7 +676,10 @@ void Controlador::controlador()
         if(inst_ejecutadas == quantum || fin_de_hilillo )
         {
             if(fin_de_hilillo){
-                vector_hilos.hilos.erase(vector_hilos.hilos.begin()+(vector_hilos.puntero_actual));
+                // se guarda el hilillo antes de sacarlo de cola de ejecucion
+                vector_hilos.hilos[vector_hilos.puntero_actual].reloj_fin = reloj;
+                historial_hilos.push_back( vector_hilos.hilos[vector_hilos.puntero_actual] );
+                vector_hilos.hilos.erase(vector_hilos.hilos.begin()+vector_hilos.puntero_actual);
                 puts("BOREEEEE");
                 fin_de_hilillo = false;
             }

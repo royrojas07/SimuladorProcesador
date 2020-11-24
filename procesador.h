@@ -71,5 +71,6 @@ class Controlador
     pthread_barrier_t  barrera; 
     sem_t senal_hilo_a_buffer; //? Donde esta el copiado de bloque de cache a buffer
     sem_t senal_ejecutar_a_controlador;
+    std::vector<Hilo> historial_hilos;
 };
 #endif
