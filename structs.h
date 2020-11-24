@@ -68,7 +68,6 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
     pthread_mutex_t candado[8];
     pthread_barrier_t * barrera;
     
-    // inicializacion del buffer con sus respectivas variables, candado en cada bloque y la barrera del controlador pasada por parametro
     void inicializar( pthread_barrier_t * barrera )
     {
         this->barrera = barrera;
@@ -122,7 +121,8 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
         return false;
     }
 
-    //retorna la pos en la que se encuentra lo buscado, en caso de no encontrarlo retorna -1
+    /* RECIBE: el numero de bloque, que trabaja como identificador.
+    RETORNA: La pos en la que se encuentra lo buscado, en caso de no encontrarlo retorna -1*/
     int buscar(int num_bloque) 
     {
         for(int i = 0; i < 8; ++i)

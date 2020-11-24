@@ -119,7 +119,8 @@ void Controlador::FIN()
     fin_de_hilillo = true;
 }
 
-//Espera a los hilos y cuando los otros 2 lleguen a la barrera tambien se aumenta el reloj 
+/*  EFECTO: Espera a los hilos y cuando los otros 2 
+            lleguen a la barrera tambien se aumenta el reloj.*/
 void Controlador::aumentar_reloj() 
 {
     pthread_barrier_wait(&barrera);
@@ -127,7 +128,11 @@ void Controlador::aumentar_reloj()
     vector_hilos.hilos[vector_hilos.puntero_actual].tiempo_en_ejecucion++; 
 }
 
-//asocia lo leido en el IR con la instruccion que deberia
+/*  EFECTO: asocia lo leido en el IR con la instruccion que deberia.
+    RECIBE: (codigo) Codifo de operacion del IR.
+            (x) Primer parametro del IR.
+            (y) Segundo parametro del IR.
+            (z) Tercer parametro del IR.*/
 void Controlador::asociar(int codigo, int x, int y, int z) 
 {
     switch (codigo)
@@ -179,7 +184,8 @@ void Controlador::asociar(int codigo, int x, int y, int z)
     }
 }
 
-//Metodo que estara ejecutando el metodo del buffer victima
+/*  EFECTO: Metodo que estara ejecutando el metodo 
+            del buffer victima. */
 void Controlador::buffer_victima()
 {
     while( vector_hilos.hilos.size() != 0 ) //Si no hay hilillos se termino el programa
@@ -196,7 +202,9 @@ void Controlador::buffer_victima()
     }
 }
 
-//Metodo que realiza la escritura a mem principal de parte del buffer
+
+/*  EFECTO: Metodo que realiza la escritura a mem principal 
+            de parte del buffer. */
 void Controlador::buffer_a_mem()
 {
     //saca el boque del inicio y toma el candado
@@ -222,7 +230,8 @@ void Controlador::buffer_a_mem()
     pthread_mutex_unlock( &buffer_vic.candado[dir_en_buffer] );
 }
     
-//Cambia de hilillo de ejecucion y junto a el las estructuras de estos hilos que se utiliza
+/*  EFECTO: Cambia de hilillo de ejecucion y junto a el las estructuras 
+            de estos hilos que se utiliza.*/
 void Controlador::cambio_contexto()
 {
     vector_hilos.hilos[vector_hilos.puntero_actual].RL = -1; //asignacion del RL al hacer cambio de contexto
@@ -241,8 +250,10 @@ void Controlador::cargar_hilos()
         getline(std::cin,input);
         std::stringstream stream(input);
         bool es_numero = true;//boolean que se vuelve falso si el input no es un número
-        for(int i = 0; i < input.length(); i++){ //se revisan los caracteres del numero para ver si corresponden a digitos, sino se considera un input inválido
-            if((input.at(i) < 48 || input.at(i) > 57){
+        for(int i = 0; i < input.length(); i++)//se revisan los caracteres del numero para ver si corresponden a digitos, sino se considera un input inválido
+        { 
+            if(input.at(i) < 48 || input.at(i) > 57)
+            {
                 es_numero = false;
                 break;
             }    
@@ -264,7 +275,8 @@ void Controlador::cargar_hilos()
         std::stringstream stream(input);
         bool es_numero = true;//boolean que se vuelve falso si el input no es un número
         for(int i = 0; i < input.length(); i++){ //se revisan los caracteres del numero para ver si corresponden a digitos, sino se considera un input inválido
-            if((input.at(i) < 48 || input.at(i) > 57){
+            if(input.at(i) < 48 || input.at(i) > 57)
+            {
                 es_numero = false;
                 break;
             }    
@@ -329,7 +341,8 @@ void Controlador::cargar_hilos()
     vector_hilos.puntero_actual = 0;
 }
 
-//Inicializacion de las caches, memorias y buffer
+
+/*  EFECTO: Inicializacion de las caches, memorias y buffer */
 void Controlador::init_estructuras()
 {
     int i, j;
@@ -396,6 +409,7 @@ void Controlador::ejecutar_hilillo()
     impresion_final();
 }
 
+/*  EFECTO: impresion al final del programa de la cache, memoria y registros*/
 void Controlador::impresion_final()
 {
     int i, j;
@@ -542,7 +556,11 @@ int Controlador::buscar_en_cache_datos( int num_bloque )
     return -1;
 }
 
-//Metodo que carga de buffer o de memoria prin y bien tambien si el que se reemplaza estaba modif, se escribe en el buffer
+/*  EFECTO: Metodo que carga de buffer o de memoria prin y bien 
+            tambien si el que se reemplaza estaba modif, se escribe en el buffer
+    RECIBE: (bloque) Bloque que se va a escribir en la cache
+            (retraso) cantidad de ciclos de retraso .
+            (num_bloque_en_buffer) numero de bloque en el buffer donde se esta cargando el bloque*/
 int Controlador::copiar_a_cache( Bloque * bloque, int retraso, int num_bloque_en_buffer ) // devuelve en bloque en cache donde hizo la copia
 {
     int bloque_cache;
@@ -589,7 +607,9 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso, int num_bloque_en
     return direc_reemplazo;
 }
 
-//Se encargo del reemplazo cuando el bloque de cache estaba en estado modificado
+/*  EFECTO: Se encargo del reemplazo cuando el bloque de cache estaba en estado modificado
+    RECIBE: (bloq_datos) Bloque que se va a escribir en la cache
+            (direc_reemplazo) direccion de reemplazo en la cache.*/
 void Controlador::reemplazo_bloq_modif(BloqueDatos * bloq_datos,int direc_reemplazo)
 {
     int direc_reemplazo_buff;
@@ -646,7 +666,6 @@ void Controlador::reemplazo_bloq_modif(BloqueDatos * bloq_datos,int direc_reempl
     }
 }
 
-    //puts("escribo");
 /*  EFECTO: se escribe a memoria la palabra que se pasa por parámetro,
             en este método se contemplan fallos de caché y lo que
             implican.
@@ -719,7 +738,10 @@ void Controlador::controlador()
     }
 }
 
-//Correspondiente al LRU
+/*  EFECTO: Busca cual tiene el ultimo uso mas viejo.
+    RECIBE: (conjunto) Conjunto en el que se evaluara el ultimo uso
+    RETORNA: La posicion donde el algoritmo determina que se 
+            hara el reemplazo*/
 int Controlador::menos_recien_usado( int conjunto ) 
 {
     int menor = INT_MAX; //el entero con signo mas grande que se puede representar 
@@ -770,3 +792,4 @@ void *Controlador::hilo_controlador( Controlador * ptr )
     ptr->controlador();
     return 0;
 }
+
