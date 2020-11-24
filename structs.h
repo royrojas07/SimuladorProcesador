@@ -139,10 +139,7 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
                             return -1;
                         }
                         else if( buffer[i].estado == VALIDO )
-                        {
-                            buffer[i].estado = SUBIENDO; //MERGING TAMBIEN
                             return i;
-                        }
                     }
                     else // no se logra tomar el candado
                         // se espera en sincronizacion con el buffer victima

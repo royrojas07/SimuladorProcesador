@@ -76,7 +76,6 @@ void Controlador::bne(int x1, int x2, int n)
     int actual = vector_hilos.puntero_actual;
     if(vector_hilos.hilos[actual].registros[x1] != vector_hilos.hilos[actual].registros[x2])
         vector_hilos.hilos[actual].PC += n * 4; // PC <- n * 4
-    //std::cout << "BNE pc: " <<vector_hilos.hilos[actual].PC << std::endl;
 }
 
 void Controlador::lr( int x1, int x2 )
@@ -245,14 +244,22 @@ void Controlador::cargar_hilos()
     //pedir el quantum
     std::string input = ""; //variable que va a guardar el input del usuario
     int quantum = 0;
-    std::cout << "De cuantos ciclos de reloj va a ser el quantum? Escriba un número mayor o igual a 10." << std::endl;
+    std::cout << "De cuantos ciclos de reloj va a ser el quantum? Digite un número mayor o igual a 10." << std::endl;
     while(true)
     {
         getline(std::cin,input);
         std::stringstream stream(input);
-        if(stream >> quantum && quantum >= 10){ //si el input es un numero valido
+        bool es_numero = true;//boolean que se vuelve falso si el input no es un número
+        for(int i = 0; i < input.length(); i++)//se revisan los caracteres del numero para ver si corresponden a digitos, sino se considera un input inválido
+        { 
+            if(input.at(i) < 48 || input.at(i) > 57)
+            {
+                es_numero = false;
+                break;
+            }    
+        }
+        if(es_numero && (stream >> quantum) && (quantum >= 10)) //si el input es un numero valido
             break;
-        } 
         else
             std::cout << "Número inválido, por favor trate de nuevo." <<std::endl;
     }
@@ -264,12 +271,18 @@ void Controlador::cargar_hilos()
     std::cout << "Cuantos hilillos va a inicializar? Escriba un número." << std::endl; 
     while(true)
     {
-        getline(std::cin,input);
-        std::stringstream stream(input);
-        if(stream >> num_hilillos) // si el input es un numero valido
+        bool es_numero = true;//boolean que se vuelve falso si el input no es un número
+        for(int i = 0; i < input.length(); i++){ //se revisan los caracteres del numero para ver si corresponden a digitos, sino se considera un input inválido
+            if(input.at(i) < 48 || input.at(i) > 57)
+            {
+                es_numero = false;
+                break;
+            }    
+        }
+        if(es_numero && (stream >> num_hilillos)) //si el input es un numero valido
             break;
         else
-            std::cout << "Número inválido, por favor trate de nuevo." << std::endl; 
+            std::cout << "Número inválido, por favor trate de nuevo." <<std::endl;
     }
     
     std::cout << "Se van a inicializar " << num_hilillos << " hilillos." << std::endl; //print para confirmar la cantidad de hilillos
@@ -476,9 +489,9 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
             int bloque_buffer = buffer_vic.buscar( num_bloque );
             if( bloque_buffer != -1 )
             {
-                // se realiza la copia desde buffer víctima
-                // se dan los 4 ciclos de retraso
-                //buffer_vic.buffer[bloque_buffer].estado = SUBIENDO; // condicion de carrera?
+                // se realiza la copia desde buffer víctima donde se dan los 4 ciclos de retraso
+                // libremente se puede colocar el estado subiendo porque se tiene el candado
+                buffer_vic.buffer[bloque_buffer].estado = SUBIENDO;
                 bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4, bloque_buffer );
             }
             else // el bloque no estaba en el buffer
@@ -671,7 +684,8 @@ void Controlador::escribir( int direccion, int palabra )
         if( bloque_buffer != -1 )
         {
             // se copia desde buffer víctima
-            //buffer_vic.buffer[bloque_buffer].estado = SUBIENDO; // ? condicion de carrera
+            // libremente se puede colocar el estado subiendo porque se tiene el candado
+            buffer_vic.buffer[bloque_buffer].estado = SUBIENDO;
             bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4, bloque_buffer );
         }
         else // el bloque no estaba en el buffer
@@ -722,6 +736,27 @@ void Controlador::controlador()
     }
 }
 
+/*  EFECTO: Busca cual tiene el ultimo uso mas viejo.
+    RECIBE: (conjunto) Conjunto en el que se evaluara el ultimo uso
+    RETORNA: La posicion donde el algoritmo determina que se 
+            hara el reemplazo*/
+int Controlador::menos_recien_usado( int conjunto ) 
+{
+    int menor = INT_MAX; //el entero con signo mas grande que se puede representar 
+    int direccion; //direccion que se va a reemplazar y sera retornado
+    for(int i = 0; i < 2; ++i)
+    {
+        if(cache.datos[(conjunto*2)+i].ultimo_uso < menor) 
+        {
+            //si se encuentra un ultimo uso menor se reemplaza la variable menor por el nuevo
+            menor = cache.datos[(conjunto*2)+i].ultimo_uso;
+            direccion = (conjunto*2)+i;
+        }
+    }
+    return direccion;
+}
+
+/*  EFECTO: manda a correr los 3 hilos necesarios para la simulación.*/
 void Controlador::init_hilos()
 {
     pthread_barrier_init(&barrera, NULL, 3);
@@ -730,6 +765,7 @@ void Controlador::init_hilos()
     hilos[2] = std::thread( hilo_buffer, this );
 }
 
+/*  EFECTO: se espera que finalicen los 3 hilos creados.*/
 void Controlador::fin_hilos()
 {
     hilos[0].join();
@@ -755,22 +791,3 @@ void *Controlador::hilo_controlador( Controlador * ptr )
     return 0;
 }
 
-/*  EFECTO: Busca cual tiene el ultimo uso mas viejo.
-    RECIBE: (conjunto) Conjunto en el que se evaluara el ultimo uso
-    RETORNA: La posicion donde el algoritmo determina que se 
-            hara el reemplazo*/
-int Controlador::menos_recien_usado( int conjunto ) 
-{
-    int menor = INT_MAX; //el entero con signo mas grande que se puede representar 
-    int direccion; //direccion que se va a reemplazar y sera retornado
-    for(int i = 0; i < 2; ++i)
-    {
-        if(cache.datos[(conjunto*2)+i].ultimo_uso < menor) 
-        {
-            //si se encuentra un ultimo uso menor se reemplaza la variable menor por el nuevo
-            menor = cache.datos[(conjunto*2)+i].ultimo_uso;
-            direccion = (conjunto*2)+i;
-        }
-    }
-    return direccion;
-}

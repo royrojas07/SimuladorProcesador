@@ -63,16 +63,20 @@ class Controlador
     int reloj;
     int quantum;
     int inst_ejecutadas;
+    // bandera para indicar que terminaron las inst. de un hilillo
     bool fin_de_hilillo;
+    // para indicar que se da cambio de reloj debido a que terminó una instr.
     bool se_ejecuto_ins;
     Buffer buffer_vic;
     Memoria memoria;
     Cache cache;
+    // cola round robin de hilillos en ejecución
     Round_robin vector_hilos;
     std::thread hilos[NUM_THREADS];
     pthread_barrier_t  barrera; 
     sem_t senal_hilo_a_buffer;
     sem_t senal_ejecutar_a_controlador;
+    // vector de hilillos que finalizaron
     std::vector<Hilo> historial_hilos;
 };
 #endif
