@@ -24,13 +24,14 @@ void Controlador::add(int x1, int x2, int x3)
 void Controlador::addi(int x1, int x2, int n)
 {
     int actual = vector_hilos.puntero_actual;
-    vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].registros[x2] + n; //?? Ese 0 se tendria que sustituir por un entero que apunte al hilo actual
+    vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].registros[x2] + n; // x1 <- x2 + n
 }
 
 void Controlador::sub(int x1, int x2, int x3)
 {
     int actual = vector_hilos.puntero_actual;
-    vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].registros[x2] - vector_hilos.hilos[actual].registros[x3];
+    vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].registros[x2] 
+        - vector_hilos.hilos[actual].registros[x3]; // x1 <- x2 - x3
 }
 
 void Controlador::mul( int x1, int x2, int x3 )
@@ -43,7 +44,8 @@ void Controlador::mul( int x1, int x2, int x3 )
 void Controlador::div(int x1, int x2, int x3)
 {
     int actual = vector_hilos.puntero_actual;
-    vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].registros[x2] / vector_hilos.hilos[actual].registros[x3];
+    vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].registros[x2] 
+        / vector_hilos.hilos[actual].registros[x3]; // x1 <- x2 / x3
 }
 
 void Controlador::lw(int x1, int x2, int n)
@@ -117,14 +119,16 @@ void Controlador::FIN()
     fin_de_hilillo = true;
 }
 
+//Espera a los hilos y cuando los otros 2 lleguen a la barrera tambien se aumenta el reloj 
 void Controlador::aumentar_reloj() 
 {
     pthread_barrier_wait(&barrera);
     ++reloj;
-    vector_hilos.hilos[vector_hilos.puntero_actual].tiempo_en_ejecucion++;
+    vector_hilos.hilos[vector_hilos.puntero_actual].tiempo_en_ejecucion++; 
 }
 
-void Controlador::asociar(int codigo, int x, int y, int z) //Si no se ocupa un parametro para un metodo se pasa un cero y no se hace nada con el 
+//asocia lo leido en el IR con la instruccion que deberia
+void Controlador::asociar(int codigo, int x, int y, int z) 
 {
     switch (codigo)
     {
@@ -175,50 +179,55 @@ void Controlador::asociar(int codigo, int x, int y, int z) //Si no se ocupa un p
     }
 }
 
-
+//Metodo que estara ejecutando el metodo del buffer victima
 void Controlador::buffer_victima()
 {
-    int longitud_buffer;
-    while( vector_hilos.hilos.size() != 0 )
+    while( vector_hilos.hilos.size() != 0 ) //Si no hay hilillos se termino el programa
     {
-        if( !sem_trywait( &senal_hilo_a_buffer ) )
+        if( !sem_trywait( &senal_hilo_a_buffer ) ) //hasta que le pongan algo en el buffer comienza a trabajar "dormido"
         {
-            while(!buffer_vic.vacia())
+            while(!buffer_vic.vacia()) //siga mientras el buffer no este vacio
             {
                 buffer_a_mem();
             }
         }
         else
-            pthread_barrier_wait( &barrera );
+            pthread_barrier_wait( &barrera ); //igualmente a pesar de estar dormido pasa por la barrera por sincronizacion
     }
 }
 
+//Metodo que realiza la escritura a mem principal de parte del buffer
 void Controlador::buffer_a_mem()
 {
-    std::cout << "BUFFER A ESCRIBIR A MEMORIA" << std::endl;
+    //saca el boque del inicio y toma el candado
     BloqueDatos victima = buffer_vic.sacar();
-    int direccion;
+    int dir_en_buffer = buffer_vic.inicio - 1; //al sacarlo se le suma 1 al inicio entonces aqui se le resta para saber de verdad caul se saco
+    int direccion; //direccion de memoria que va a ser reemplazado
     int retrasos = 0;
-    while(retrasos < 24)
+    while(retrasos < 24) //los 24 retrasos de reloj para escribir en mem principal
     {
         pthread_barrier_wait(&barrera);
         retrasos++;
     }
     direccion = victima.bloque * 2;
-    printf("BLOQUEEEEEE  %d",victima.bloque);
+    //escritura en la memoria 
     memoria.datos[direccion] = victima.palabra[0];
     memoria.datos[direccion + 1] = victima.palabra[1];
-    buffer_vic.buffer[buffer_vic.inicio - 1].estado = LIBRE;
-    buffer_vic.buffer[buffer_vic.inicio - 1].bloque = -1;
-    pthread_mutex_unlock( &buffer_vic.candado[buffer_vic.inicio - 1] );
+
+    if( dir_en_buffer == -1 )//por propiedades de vector circular es necesario preguntar esta condicion
+        dir_en_buffer = 7;
+    //luego de escribirlo en memoria regresa al estado en que se inicializo y se libera el candado
+    buffer_vic.buffer[dir_en_buffer].estado = LIBRE;
+    buffer_vic.buffer[dir_en_buffer].bloque = -1;
+    pthread_mutex_unlock( &buffer_vic.candado[dir_en_buffer] );
 }
     
-
+//Cambia de hilillo de ejecucion y junto a el las estructuras de estos hilos que se utiliza
 void Controlador::cambio_contexto()
 {
-    vector_hilos.hilos[vector_hilos.puntero_actual].RL = -1;
-    vector_hilos.puntero_actual = (vector_hilos.puntero_actual+1) % vector_hilos.hilos.size();
-    inst_ejecutadas = 0;
+    vector_hilos.hilos[vector_hilos.puntero_actual].RL = -1; //asignacion del RL al hacer cambio de contexto
+    vector_hilos.puntero_actual = (vector_hilos.puntero_actual+1) % vector_hilos.hilos.size(); //cual sera el siguiente hilo utilizando propiedades de vector circular
+    inst_ejecutadas = 0; //reinicia las instrucciones ejecutadas porque esta variable es la que se compara con el quantum
 }
 
 void Controlador::cargar_hilos()
@@ -296,12 +305,17 @@ void Controlador::cargar_hilos()
     // init de registros de hilillos
     for( int i = 0; i < num_hilillos; ++i )
     {
+        vector_hilos.hilos[i].reloj_fin = 0;
+        vector_hilos.hilos[i].reloj_inicio = 0;
+        vector_hilos.hilos[i].RL = -1;
+        vector_hilos.hilos[i].tiempo_en_ejecucion = 0;
         for( int j = 0; j < 32; ++j )
             vector_hilos.hilos[i].registros[j] = 0;
     }
     vector_hilos.puntero_actual = 0;
 }
 
+//Inicializacion de las caches, memorias y buffer
 void Controlador::init_estructuras()
 {
     int i, j;
@@ -320,7 +334,7 @@ void Controlador::init_estructuras()
         cache.datos[i].estado = INVALIDO;
         cache.datos[i].ultimo_uso = -1;
     }
-    //Falta el init de cache de instrucciones con 0
+    //Init de cache de instrucciones con 0
     for(i = 0; i < 8; ++i)
     {
         for(j = 0; j < 8; ++j)
@@ -348,12 +362,7 @@ void Controlador::ejecutar_hilillo()
     {
         // se treabaja con el hilo al que se apunta
         // se carga al IR la instrucción que apunta el PC
-        //std::cout << vector_hilos.hilos[vector_hilos.puntero_actual].PC << " Pc"<<std::endl;
         cargar( vector_hilos.hilos[vector_hilos.puntero_actual].PC, vector_hilos.hilos[vector_hilos.puntero_actual].IR, 'I' );
-        std::cout << "IR: ";
-        for( int i = 0; i < 4; ++i )
-            std::cout << vector_hilos.hilos[vector_hilos.puntero_actual].IR[i] << " ";
-        std::cout << std::endl;
         // se apunta a la siguiente direccion
         vector_hilos.hilos[vector_hilos.puntero_actual].PC += 4;
         // se ejecuta la instrucción
@@ -367,7 +376,6 @@ void Controlador::ejecutar_hilillo()
         // para seguir con la siguiente inst. o siguiente hilo
         sem_wait( &senal_ejecutar_a_controlador );
     }
-    puts("LLEGUE :D");
     int i, j;
     std::cout << "cache de datos:"<<std::endl;
     for( int i = 0; i < 4; i++ )
@@ -384,7 +392,22 @@ void Controlador::ejecutar_hilillo()
     for(i = 0; i < 640; ++i) 
         std::cout << memoria.instrucciones[i] << " ";
     std::cout << std::endl;
-    std::cout << "reloj: " << reloj<< std::endl;
+    std::cout << "buffer victima: " << std::endl;
+    for( int i = 0; i < 8; ++i )
+    {
+        std::cout << buffer_vic.buffer[i].palabra[0]<< " ";
+        std::cout << buffer_vic.buffer[i].palabra[1] <<std::endl;
+    }
+    std::cout << "RELOJ: " << reloj<< std::endl;
+    std::cout << "HILILLOS: " << std::endl;
+    for( int i = 0; i < historial_hilos.size(); ++i )
+    {
+        std::cout << "REGISTROS: " << std::endl;
+        for( int j = 0; j < 32; ++j )
+            std::cout << historial_hilos[i].registros[j] << " ";
+        std::cout << "PC "<<historial_hilos[i].PC << std::endl;
+        std::cout << "TIEMPO EJECUCION "<<historial_hilos[i].tiempo_en_ejecucion << std::endl;
+    }
 }
 
 void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
@@ -395,7 +418,6 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
     //std::cout << num_bloque << " " << num_palabra << std::endl;
     if( memoria == 'I' ) // cache de instrucciones
     {
-        puts("cargando una instruccion");
         // mapeo directo
         if( cache.instrucciones[num_bloque%8].bloque != num_bloque ) // fallo de lectura
         {
@@ -428,8 +450,8 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
             {
                 // se realiza la copia
                 // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
-                buffer_vic.buffer[bloque_buffer].estado = SUBIENDO;
-                bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4 ); // ? aqui no hay problemas
+                buffer_vic.buffer[bloque_buffer].estado = SUBIENDO; // condicion de carrera?
+                bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4, bloque_buffer ); // ? aqui no hay problemas
             }
             else // el bloque no estaba en el buffer
             {
@@ -437,6 +459,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
                 cargar_de_mem_principal( num_bloque, bloque_datos.palabra );
                 bloque_datos.bloque = num_bloque;
                 bloque_datos.estado = COMPARTIDO; // estado compartido
+                //bloque_datos.ultimo_uso = reloj;
                 bloque_cache = copiar_a_cache( &bloque_datos, 24 ); // aqui se durarian los 24 ciclos
             }
         }
@@ -446,6 +469,8 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
         int palabra_pos = (num_palabra % 2) ? 1:0;
         // se retorna la palabra
         *palabra_retorno = cache.datos[bloque_cache].palabra[palabra_pos];
+        // ? cuando se carga tambien se esta haciendo uso
+        cache.datos[bloque_cache].ultimo_uso = reloj;
     }
 }
 
@@ -480,7 +505,8 @@ int Controlador::buscar_en_cache_datos( int num_bloque )
     return -1;
 }
 
-int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en bloque en cache donde hizo la copia
+//Metodo que carga de buffer o de memoria prin y bien tambien si el que se reemplaza estaba modif, se escribe en el buffer
+int Controlador::copiar_a_cache( Bloque * bloque, int retraso, int num_bloque_en_buffer ) // devuelve en bloque en cache donde hizo la copia
 {
     int bloque_cache;
     int counter = 0;
@@ -491,80 +517,74 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
     bool insertado = false;
     bool estaba_vacia = false;
     BloqueDatos * bloq_datos = dynamic_cast< BloqueDatos * >( bloque );
-    // asociativa o LRU?
-    // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
-    if( bloq_datos != NULL ) // se copia desde buffer victima
-    {
-        // seria LRU porque con ultimo_uso = -1 ya se sabe si el bloque esta en invalido
-        // lru()
+    if( bloq_datos != NULL ) //carga de datos ya sea desde el buffer o bien desde memoria principal
+    {  
         direc_reemplazo = menos_recien_usado( conjunto ); 
-
-        while(counter < retraso)
+        while(counter < retraso) //Aqui se espera ya sea 4 ciclos o 24 ciclos de reloj
         {
             pthread_barrier_wait(&barrera);
             ++counter;
         }
-        
         if(cache.datos[direc_reemplazo].estado == INVALIDO || cache.datos[direc_reemplazo].estado == COMPARTIDO)
         {
-            cache.datos[direc_reemplazo] = *bloq_datos; //se puede hacer esto?
-                                                    //La otra seria hacer dynamic cast y igualar cada una de la palabras                                        
+            cache.datos[direc_reemplazo] = *bloq_datos; //se le puede caer encima libremente                   
         }
         else // estado del bloque en cache MODIFICADO
         {
-            puts("SE VA A REEMPLZAR A BUFFER");
+            //encuentra bloque a utilizar y coloca candado en el
             direc_reemplazo_buff = buffer_vic.buscar(cache.datos[direc_reemplazo].bloque);
-            if(direc_reemplazo_buff == -1)
+            if(direc_reemplazo_buff == -1) // -1 indica que el buscar no encontro el bloque
             {
                 while(!insertado)
                 {
                     if(!buffer_vic.llena())
                     {
                         insertado = true;
-                        if(buffer_vic.vacia()) //si esta vacio le tengo que avisar al hilo del buffer que ahora hay algo
+                        if(buffer_vic.vacia())  
+                            //por cuestiones de sincronizacion se ocupa verificar si esta vacia antes de insertar al buffer
+                            //con el fin de despertar el hilo del buffer que estaria dormido
                             estaba_vacia = true;
                         counter = 0;
-                        while(counter < 4)
+                        while(counter < 4) //retraso de 4 ciclos para insertar en el buffer
                         {
                             pthread_barrier_wait(&barrera);
                             counter++;
                         }
-                        buffer_vic.insertar(cache.datos[direc_reemplazo]);
+                        buffer_vic.insertar(cache.datos[direc_reemplazo]); //el bloque que va a ser reemplazado se guarda en el buffer
                         if( estaba_vacia )
                         {
-                            sem_post( &senal_hilo_a_buffer );
+                            sem_post( &senal_hilo_a_buffer ); //despierta el hilo del buffer
                             estaba_vacia = false;
                         }
-                        cache.datos[direc_reemplazo] = *bloq_datos; //modif de la cache
+                        cache.datos[direc_reemplazo] = *bloq_datos; //se modifica la cache
                     }
-                    else
+                    else //el buffer esta lleno, asi que espero a que tenga un espacio
                     {
-                        pthread_barrier_wait(&barrera); //para sincronizacion tiene que esperar hasta que el buffer deje de estar lleno
+                        pthread_barrier_wait(&barrera); 
                     }
                 }
             }
             else
             {
                 counter = 0;
-                buffer_vic.buffer[direc_reemplazo_buff].estado = MERGING;
-                while(counter < 4)
+                //libremente se puede colocar el estado merging porque se tiene el candado de este bloque del buscar
+                buffer_vic.buffer[direc_reemplazo_buff].estado = MERGING; 
+                while(counter < 4) //retraso por hacer merging
                 {
                     pthread_barrier_wait(&barrera);
                     counter++;
                 }
-                buffer_vic.buffer[direc_reemplazo_buff] = cache.datos[direc_reemplazo]; //MERGING
-                buffer_vic.buffer[direc_reemplazo_buff].estado = VALIDO;
-                cache.datos[direc_reemplazo] = *bloq_datos; //modif de la cache
+                buffer_vic.buffer[direc_reemplazo_buff] = cache.datos[direc_reemplazo]; //se realiza el merging
+                buffer_vic.buffer[direc_reemplazo_buff].estado = VALIDO; //el bloque vuelve a estar valido
+                pthread_mutex_unlock( &buffer_vic.candado[direc_reemplazo_buff] ); //se libera el candado del bloque
+                cache.datos[direc_reemplazo] = *bloq_datos; //se modifica la cache
             }
         }
-        //Fijarme en los estados de la cache para ver si tengo que hacer merging o solo meter al buffer
-        // :-)
-        std::cout << "SE REEMPLAZO BLOQUE DE DATOS " << direc_reemplazo << std::endl;
     }
     else// se copia a cache de instrucciones
     {
         BloqueInstruc * bloq_instr = dynamic_cast< BloqueInstruc * >( bloque );
-        while(counter < retraso)
+        while(counter < retraso) //retraso que entra por parametro, en este caso es de 24
         {
             pthread_barrier_wait(&barrera);
             ++counter;
@@ -574,9 +594,11 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
         direc_reemplazo = num_bloque%8;
     }
     if(retraso == 4)
-    //Si ocurrio un retraso de 4 es que se estaba copiando de buffer, por lo que se coloco estado de ESCRIBIENDO en el buffer
-    //de esta manera devuelvo el bloque del buffer a un estado valido para que cuando siga en la cola se copie a memoria
-        bloq_datos->estado = VALIDO; 
+    {
+        //Si el retraso fue de 4, en este caso se sabe que trabajo con el buffer entonces se vuelve el bloque valido y se libera candado de bloque
+        bloq_datos->estado = VALIDO;
+        pthread_mutex_unlock( &buffer_vic.candado[num_bloque_en_buffer] );
+    }
     return direc_reemplazo;
 }
 
@@ -598,8 +620,8 @@ void Controlador::escribir( int direccion, int palabra )
             puts("se sube de buffer");
             // se realiza la copia
             // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
-            buffer_vic.buffer[bloque_buffer].estado = SUBIENDO;
-            bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4 ); // ? aqui no hay problemas
+            buffer_vic.buffer[bloque_buffer].estado = SUBIENDO; // ? condicion de carrera
+            bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4, bloque_buffer ); // ? aqui no hay problemas
         }
         else // el bloque no estaba en el buffer
         {
@@ -630,23 +652,22 @@ void Controlador::controlador()
         if(inst_ejecutadas == quantum || fin_de_hilillo )
         {
             if(fin_de_hilillo){
-                vector_hilos.hilos.erase(vector_hilos.hilos.begin()+(vector_hilos.puntero_actual-1));
+                // se guarda el hilillo antes de sacarlo de cola de ejecucion
+                vector_hilos.hilos[vector_hilos.puntero_actual].reloj_fin = reloj;
+                historial_hilos.push_back( vector_hilos.hilos[vector_hilos.puntero_actual] );
+                vector_hilos.hilos.erase(vector_hilos.hilos.begin()+vector_hilos.puntero_actual);
                 fin_de_hilillo = false;
             }
             if( vector_hilos.hilos.size() != 0 )
             {
                 cambio_contexto();
                 cambio_de_contexto = true;
-                //inst_ejecutadas_ant = 0;
-                std::cout << "CAMBIO DE CONTEXTO" << std::endl;
             }
         }
         //std::cout << "inst_ejecutads" << inst_ejecutadas << " _ant " << inst_ejecutadas_ant << std::endl;
         if( se_ejecuto_ins || cambio_de_contexto )
         {
             sem_post( &senal_ejecutar_a_controlador );
-            //if( !cambio_de_contexto )
-               // inst_ejecutadas_ant++;
             se_ejecuto_ins = false;
             cambio_de_contexto = false;
         }
@@ -686,14 +707,16 @@ void *Controlador::hilo_controlador( Controlador * ptr )
     return 0;
 }
 
+//Correspondiente al LRU
 int Controlador::menos_recien_usado( int conjunto ) 
 {
-    int menor = INT_MAX; //numero alto como inicializacion
-    int direccion; 
+    int menor = INT_MAX; //el entero con signo mas grande que se puede representar 
+    int direccion; //direccion que se va a reemplazar y sera retornado
     for(int i = 0; i < 2; ++i)
     {
-        if(cache.datos[(conjunto*2)+i].ultimo_uso < menor)
+        if(cache.datos[(conjunto*2)+i].ultimo_uso < menor) 
         {
+            //si se encuentra un ultimo uso menor se reemplaza la variable menor por el nuevo
             menor = cache.datos[(conjunto*2)+i].ultimo_uso;
             direccion = (conjunto*2)+i;
         }

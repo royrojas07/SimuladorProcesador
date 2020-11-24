@@ -26,7 +26,7 @@ struct Bloque
 {
     int bloque;
     char estado;
-    virtual ~Bloque(){}
+    virtual ~Bloque(){} //con el fin de poder hacer dynamic casting
 };
 
 struct BloqueDatos : public Bloque
@@ -52,7 +52,7 @@ struct Cache
     BloqueInstruc instrucciones[8];
 };
 
-struct Round_robin // Carlos
+struct Round_robin 
 {
     int puntero_actual;
     std::vector<Hilo> hilos;
@@ -68,6 +68,7 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
     pthread_mutex_t candado[8];
     pthread_barrier_t * barrera;
     
+    // inicializacion del buffer con sus respectivas variables, candado en cada bloque y la barrera del controlador pasada por parametro
     void inicializar( pthread_barrier_t * barrera )
     {
         this->barrera = barrera;
@@ -88,16 +89,19 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
 
     BloqueDatos sacar()
     {
-        pthread_mutex_lock( &candado[inicio] );
-        while(buffer[inicio].estado == SUBIENDO || buffer[inicio].estado == MERGING) //Magiver, comentarselo a los brooos
+        while(true)
         {
-            pthread_barrier_wait(barrera);
+            if( pthread_mutex_trylock( &candado[inicio] ) == 0 ) //espera hasta poder tomar el candado del bloque
+            {
+                buffer[inicio].estado = ESCRIBIENDO;
+                BloqueDatos bloque = buffer[inicio++];
+                inicio = inicio % 8; //por las propiedades de arreglo circular
+                longitud -= 1;
+                return bloque;
+            }                          
+            else
+                pthread_barrier_wait(barrera);
         }
-        buffer[inicio].estado = ESCRIBIENDO; //significa que se esta escribiendo 
-        BloqueDatos bloque = buffer[inicio++];
-        inicio = inicio % 8; //por las propiedades de arreglo circular
-        longitud -= 1;
-        return bloque;
     }
 
     bool llena()
@@ -118,7 +122,8 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
         return false;
     }
 
-    int buscar(int num_bloque) //retorna la pos en la que se encuentra lo buscado, en caso de no encontrarlo retorna -1
+    //retorna la pos en la que se encuentra lo buscado, en caso de no encontrarlo retorna -1
+    int buscar(int num_bloque) 
     {
         for(int i = 0; i < 8; ++i)
         {
@@ -128,17 +133,20 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
                 {
                     if( pthread_mutex_trylock( &candado[i] ) == 0 ) // se logra tomar el candado
                     {
-                        pthread_mutex_unlock(&candado[i]);
                         if( buffer[i].estado == LIBRE )
+                        {
+                            pthread_mutex_unlock(&candado[i]);
                             return -1;
+                        }
                         else if( buffer[i].estado == VALIDO )
+                        {
+                            buffer[i].estado = SUBIENDO; //MERGING TAMBIEN
                             return i;
+                        }
                     }
                     else // no se logra tomar el candado
-                    {
                         // se espera en sincronizacion con el buffer victima
                         pthread_barrier_wait( barrera );
-                    }
                 }
             }
         }
