@@ -52,7 +52,7 @@ class Controlador
     void cargar( int direccion, int * palabra_retorno, char='D' ); // carga de memoria
     void escribir( int direccion, int palabra ); // escribir a memoria
     void cargar_de_mem_principal( int num_bloque, int * bloque_retorno );
-    int copiar_a_cache( Bloque * bloque, int retraso );
+    int copiar_a_cache( Bloque * bloque, int retraso, int num_bloque_en_buffer=0 );
     void buffer_a_mem();
     int buscar_en_cache_datos( int num_bloque );
     int menos_recien_usado( int conjunto );

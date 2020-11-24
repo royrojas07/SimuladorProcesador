@@ -205,7 +205,7 @@ void Controlador::buffer_a_mem()
         retrasos++;
     }
     direccion = victima.bloque * 2;
-    printf("BLOQUEEEEEE  %d",victima.bloque);
+    //printf("BLOQUEEEEEE  %d",victima.bloque);
     memoria.datos[direccion] = victima.palabra[0];
     memoria.datos[direccion + 1] = victima.palabra[1];
     buffer_vic.buffer[buffer_vic.inicio - 1].estado = LIBRE;
@@ -428,8 +428,8 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
             {
                 // se realiza la copia
                 // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
-                buffer_vic.buffer[bloque_buffer].estado = SUBIENDO;
-                bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4 ); // ? aqui no hay problemas
+                buffer_vic.buffer[bloque_buffer].estado = SUBIENDO; // condicion de carrera?
+                bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4, bloque_buffer ); // ? aqui no hay problemas
             }
             else // el bloque no estaba en el buffer
             {
@@ -437,6 +437,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
                 cargar_de_mem_principal( num_bloque, bloque_datos.palabra );
                 bloque_datos.bloque = num_bloque;
                 bloque_datos.estado = COMPARTIDO; // estado compartido
+                bloque_datos.ultimo_uso = -1;
                 bloque_cache = copiar_a_cache( &bloque_datos, 24 ); // aqui se durarian los 24 ciclos
             }
         }
@@ -446,6 +447,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
         int palabra_pos = (num_palabra % 2) ? 1:0;
         // se retorna la palabra
         *palabra_retorno = cache.datos[bloque_cache].palabra[palabra_pos];
+        // ? cuando se carga tambien se esta haciendo uso
     }
 }
 
@@ -480,7 +482,7 @@ int Controlador::buscar_en_cache_datos( int num_bloque )
     return -1;
 }
 
-int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en bloque en cache donde hizo la copia
+int Controlador::copiar_a_cache( Bloque * bloque, int retraso, int num_bloque_en_buffer ) // devuelve en bloque en cache donde hizo la copia
 {
     int bloque_cache;
     int counter = 0;
@@ -536,6 +538,7 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
                             estaba_vacia = false;
                         }
                         cache.datos[direc_reemplazo] = *bloq_datos; //modif de la cache
+                        // ? habria que poner el estado a VALIDO y liberar candado del bloque se se subio
                     }
                     else
                     {
@@ -546,7 +549,7 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
             else
             {
                 counter = 0;
-                buffer_vic.buffer[direc_reemplazo_buff].estado = MERGING;
+                buffer_vic.buffer[direc_reemplazo_buff].estado = MERGING; // condicion de carrera?
                 while(counter < 4)
                 {
                     pthread_barrier_wait(&barrera);
@@ -554,7 +557,10 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
                 }
                 buffer_vic.buffer[direc_reemplazo_buff] = cache.datos[direc_reemplazo]; //MERGING
                 buffer_vic.buffer[direc_reemplazo_buff].estado = VALIDO;
+                // aca se liberaria el candado para el bloque sobre el que se hace merging?
+                pthread_mutex_unlock( &buffer_vic.candado[direc_reemplazo_buff] );
                 cache.datos[direc_reemplazo] = *bloq_datos; //modif de la cache
+                // ? habria que poner el estado a VALIDO y liberar candado del bloque se se subio
             }
         }
         //Fijarme en los estados de la cache para ver si tengo que hacer merging o solo meter al buffer
@@ -574,9 +580,12 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso ) // devuelve en b
         direc_reemplazo = num_bloque%8;
     }
     if(retraso == 4)
+    {
     //Si ocurrio un retraso de 4 es que se estaba copiando de buffer, por lo que se coloco estado de ESCRIBIENDO en el buffer
     //de esta manera devuelvo el bloque del buffer a un estado valido para que cuando siga en la cola se copie a memoria
-        bloq_datos->estado = VALIDO; 
+        bloq_datos->estado = VALIDO;
+        pthread_mutex_unlock( &buffer_vic.candado[num_bloque_en_buffer] );
+    }
     return direc_reemplazo;
 }
 
@@ -598,8 +607,8 @@ void Controlador::escribir( int direccion, int palabra )
             puts("se sube de buffer");
             // se realiza la copia
             // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
-            buffer_vic.buffer[bloque_buffer].estado = SUBIENDO;
-            bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4 ); // ? aqui no hay problemas
+            buffer_vic.buffer[bloque_buffer].estado = SUBIENDO; // ? condicion de carrera
+            bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4, bloque_buffer ); // ? aqui no hay problemas
         }
         else // el bloque no estaba en el buffer
         {

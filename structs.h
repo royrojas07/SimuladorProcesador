@@ -88,7 +88,20 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
 
     BloqueDatos sacar()
     {
-        pthread_mutex_lock( &candado[inicio] );
+        while(true)
+        {
+            if( pthread_mutex_trylock( &candado[inicio] ) == 0 )
+            {
+                buffer[inicio].estado = ESCRIBIENDO; //significa que se esta escribiendo 
+                BloqueDatos bloque = buffer[inicio++];
+                inicio = inicio % 8; //por las propiedades de arreglo circular
+                longitud -= 1;
+                return bloque;
+            }                           //VERSION TRYLOCK
+            else
+                pthread_barrier_wait(barrera);
+        }
+        /*pthread_mutex_lock( &candado[inicio] );
         while(buffer[inicio].estado == SUBIENDO || buffer[inicio].estado == MERGING) //Magiver, comentarselo a los brooos
         {
             pthread_barrier_wait(barrera);
@@ -97,7 +110,7 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
         BloqueDatos bloque = buffer[inicio++];
         inicio = inicio % 8; //por las propiedades de arreglo circular
         longitud -= 1;
-        return bloque;
+        return bloque;*/
     }
 
     bool llena()
@@ -128,18 +141,27 @@ struct Buffer //lo trabajo como arreglo circular para ahorrar los corrimientos
                 {
                     if( pthread_mutex_trylock( &candado[i] ) == 0 ) // se logra tomar el candado
                     {
-                        pthread_mutex_unlock(&candado[i]);
                         if( buffer[i].estado == LIBRE )
+                        {
+                            pthread_mutex_unlock(&candado[i]);
                             return -1;
+                        }
                         else if( buffer[i].estado == VALIDO )
+                        {
+                            buffer[i].estado = SUBIENDO; //MERGING TAMBIEN
                             return i;
+                        }
                     }
                     else // no se logra tomar el candado
-                    {
                         // se espera en sincronizacion con el buffer victima
                         pthread_barrier_wait( barrera );
-                    }
                 }
+                /*if( buffer[i].estado == VALIDO )
+                    return i;
+                while( buffer[i].estado == ESCRIBIENDO )  // VERSION WHILE
+                {
+                    pthread_barrier_wait( barrera );
+                }*/
             }
         }
         return -1;
