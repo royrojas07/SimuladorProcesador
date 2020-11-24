@@ -1,4 +1,4 @@
-contador: main.cpp procesador.cpp 
+simulador: main.cpp procesador.cpp 
 	g++ main.cpp procesador.cpp -pthread -o procesador.out
 
 clean:
