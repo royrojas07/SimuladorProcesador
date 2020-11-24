@@ -76,7 +76,6 @@ void Controlador::bne(int x1, int x2, int n)
     int actual = vector_hilos.puntero_actual;
     if(vector_hilos.hilos[actual].registros[x1] != vector_hilos.hilos[actual].registros[x2])
         vector_hilos.hilos[actual].PC += n * 4; // PC <- n * 4
-    std::cout << "BNE pc: " <<vector_hilos.hilos[actual].PC << std::endl;
 }
 
 void Controlador::lr( int x1, int x2 )
@@ -460,9 +459,9 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
             int bloque_buffer = buffer_vic.buscar( num_bloque );
             if( bloque_buffer != -1 )
             {
-                // se realiza la copia desde buffer víctima
-                // se dan los 4 ciclos de retraso
-                //buffer_vic.buffer[bloque_buffer].estado = SUBIENDO; // condicion de carrera?
+                // se realiza la copia desde buffer víctima donde se dan los 4 ciclos de retraso
+                // libremente se puede colocar el estado subiendo porque se tiene el candado
+                buffer_vic.buffer[bloque_buffer].estado = SUBIENDO;
                 bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4, bloque_buffer );
             }
             else // el bloque no estaba en el buffer
@@ -641,7 +640,8 @@ void Controlador::escribir( int direccion, int palabra )
         if( bloque_buffer != -1 )
         {
             // se copia desde buffer víctima
-            //buffer_vic.buffer[bloque_buffer].estado = SUBIENDO; // ? condicion de carrera
+            // libremente se puede colocar el estado subiendo porque se tiene el candado
+            buffer_vic.buffer[bloque_buffer].estado = SUBIENDO;
             bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4, bloque_buffer );
         }
         else // el bloque no estaba en el buffer
@@ -692,6 +692,24 @@ void Controlador::controlador()
     }
 }
 
+//Correspondiente al LRU
+int Controlador::menos_recien_usado( int conjunto ) 
+{
+    int menor = INT_MAX; //el entero con signo mas grande que se puede representar 
+    int direccion; //direccion que se va a reemplazar y sera retornado
+    for(int i = 0; i < 2; ++i)
+    {
+        if(cache.datos[(conjunto*2)+i].ultimo_uso < menor) 
+        {
+            //si se encuentra un ultimo uso menor se reemplaza la variable menor por el nuevo
+            menor = cache.datos[(conjunto*2)+i].ultimo_uso;
+            direccion = (conjunto*2)+i;
+        }
+    }
+    return direccion;
+}
+
+/*  EFECTO: manda a correr los 3 hilos necesarios para la simulación.*/
 void Controlador::init_hilos()
 {
     pthread_barrier_init(&barrera, NULL, 3);
@@ -700,6 +718,7 @@ void Controlador::init_hilos()
     hilos[2] = std::thread( hilo_buffer, this );
 }
 
+/*  EFECTO: se espera que finalicen los 3 hilos creados.*/
 void Controlador::fin_hilos()
 {
     hilos[0].join();
@@ -723,21 +742,4 @@ void *Controlador::hilo_controlador( Controlador * ptr )
 {
     ptr->controlador();
     return 0;
-}
-
-//Correspondiente al LRU
-int Controlador::menos_recien_usado( int conjunto ) 
-{
-    int menor = INT_MAX; //el entero con signo mas grande que se puede representar 
-    int direccion; //direccion que se va a reemplazar y sera retornado
-    for(int i = 0; i < 2; ++i)
-    {
-        if(cache.datos[(conjunto*2)+i].ultimo_uso < menor) 
-        {
-            //si se encuentra un ultimo uso menor se reemplaza la variable menor por el nuevo
-            menor = cache.datos[(conjunto*2)+i].ultimo_uso;
-            direccion = (conjunto*2)+i;
-        }
-    }
-    return direccion;
 }
