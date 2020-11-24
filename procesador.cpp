@@ -52,7 +52,10 @@ void Controlador::lw(int x1, int x2, int n)
     int direccion = vector_hilos.hilos[actual].registros[x2] + n;
     int* palabra;
     cargar(direccion,palabra);
+    puts("palabra ");
+    std::cout << *palabra << std::endl;
     vector_hilos.hilos[actual].registros[x1] = *palabra; // x1 <- M[x2 + n]
+    puts("todo bien en el LW");
 }
 
 void Controlador::sw(int x2, int x1, int n)
@@ -189,14 +192,17 @@ void Controlador::buffer_victima()
             }
         }
         else
-            pthread_barrier_wait( &barrera );
+            if(vector_hilos.hilos.size() != 0)
+                pthread_barrier_wait( &barrera );
     }
 }
 
 void Controlador::buffer_a_mem()
 {
-    std::cout << "BUFFER A ESCRIBIR A MEMORIA" << std::endl;
+    puts("BUFFER A ESCRIBIR A MEMORIA");
     BloqueDatos victima = buffer_vic.sacar();
+    int dir_en_buffer = buffer_vic.inicio - 1;
+    puts("PASE DE SACAR!");
     int direccion;
     int retrasos = 0;
     while(retrasos < 24)
@@ -205,12 +211,15 @@ void Controlador::buffer_a_mem()
         retrasos++;
     }
     direccion = victima.bloque * 2;
-    //printf("BLOQUEEEEEE  %d",victima.bloque);
+    puts("impostora");
+    std::cout << "dir impostora " << direccion << std::endl;
     memoria.datos[direccion] = victima.palabra[0];
     memoria.datos[direccion + 1] = victima.palabra[1];
-    buffer_vic.buffer[buffer_vic.inicio - 1].estado = LIBRE;
-    buffer_vic.buffer[buffer_vic.inicio - 1].bloque = -1;
-    pthread_mutex_unlock( &buffer_vic.candado[buffer_vic.inicio - 1] );
+    if( dir_en_buffer == -1 )
+        dir_en_buffer = 7;
+    buffer_vic.buffer[dir_en_buffer].estado = LIBRE;
+    buffer_vic.buffer[dir_en_buffer].bloque = -1;
+    pthread_mutex_unlock( &buffer_vic.candado[dir_en_buffer] );
 }
     
 
@@ -219,6 +228,9 @@ void Controlador::cambio_contexto()
     vector_hilos.hilos[vector_hilos.puntero_actual].RL = -1;
     vector_hilos.puntero_actual = (vector_hilos.puntero_actual+1) % vector_hilos.hilos.size();
     inst_ejecutadas = 0;
+    puts("ptr actual ");
+    std::cout << vector_hilos.puntero_actual << std::endl;
+    std::cout << vector_hilos.hilos.size() << std::endl;
 }
 
 void Controlador::cargar_hilos()
@@ -296,6 +308,10 @@ void Controlador::cargar_hilos()
     // init de registros de hilillos
     for( int i = 0; i < num_hilillos; ++i )
     {
+        vector_hilos.hilos[i].reloj_fin = 0;
+        vector_hilos.hilos[i].reloj_inicio = 0;
+        vector_hilos.hilos[i].RL = -1;
+        vector_hilos.hilos[i].tiempo_en_ejecucion = 0;
         for( int j = 0; j < 32; ++j )
             vector_hilos.hilos[i].registros[j] = 0;
     }
@@ -349,6 +365,8 @@ void Controlador::ejecutar_hilillo()
         // se treabaja con el hilo al que se apunta
         // se carga al IR la instrucción que apunta el PC
         //std::cout << vector_hilos.hilos[vector_hilos.puntero_actual].PC << " Pc"<<std::endl;
+        puts("PC actual ");
+        std::cout << vector_hilos.hilos[vector_hilos.puntero_actual].PC << std::endl;
         cargar( vector_hilos.hilos[vector_hilos.puntero_actual].PC, vector_hilos.hilos[vector_hilos.puntero_actual].IR, 'I' );
         std::cout << "IR: ";
         for( int i = 0; i < 4; ++i )
@@ -437,7 +455,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
                 cargar_de_mem_principal( num_bloque, bloque_datos.palabra );
                 bloque_datos.bloque = num_bloque;
                 bloque_datos.estado = COMPARTIDO; // estado compartido
-                bloque_datos.ultimo_uso = -1;
+                //bloque_datos.ultimo_uso = reloj;
                 bloque_cache = copiar_a_cache( &bloque_datos, 24 ); // aqui se durarian los 24 ciclos
             }
         }
@@ -448,6 +466,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
         // se retorna la palabra
         *palabra_retorno = cache.datos[bloque_cache].palabra[palabra_pos];
         // ? cuando se carga tambien se esta haciendo uso
+        cache.datos[bloque_cache].ultimo_uso = reloj;
     }
 }
 
@@ -584,8 +603,11 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso, int num_bloque_en
     //Si ocurrio un retraso de 4 es que se estaba copiando de buffer, por lo que se coloco estado de ESCRIBIENDO en el buffer
     //de esta manera devuelvo el bloque del buffer a un estado valido para que cuando siga en la cola se copie a memoria
         bloq_datos->estado = VALIDO;
+        puts("antes de unlock");
         pthread_mutex_unlock( &buffer_vic.candado[num_bloque_en_buffer] );
+        puts("despues de unlock");
     }
+    puts("TODO BIENNNN");
     return direc_reemplazo;
 }
 
@@ -634,12 +656,13 @@ void Controlador::controlador()
     int inst_ejecutadas_ant = 0;
     bool cambio_de_contexto = false;
     fin_de_hilillo = false;
-    while(true){
+    while(vector_hilos.hilos.size() != 0 ){
         aumentar_reloj();
         if(inst_ejecutadas == quantum || fin_de_hilillo )
         {
             if(fin_de_hilillo){
-                vector_hilos.hilos.erase(vector_hilos.hilos.begin()+(vector_hilos.puntero_actual-1));
+                vector_hilos.hilos.erase(vector_hilos.hilos.begin()+(vector_hilos.puntero_actual));
+                puts("BOREEEEE");
                 fin_de_hilillo = false;
             }
             if( vector_hilos.hilos.size() != 0 )
@@ -674,7 +697,7 @@ void Controlador::fin_hilos()
 {
     hilos[0].join();
     hilos[1].join();
-    hilos[2].join();
+    hilos[2].join(); 
 }
 
 void *Controlador::hilo_buffer( Controlador * ptr )
