@@ -76,7 +76,7 @@ void Controlador::bne(int x1, int x2, int n)
     int actual = vector_hilos.puntero_actual;
     if(vector_hilos.hilos[actual].registros[x1] != vector_hilos.hilos[actual].registros[x2])
         vector_hilos.hilos[actual].PC += n * 4; // PC <- n * 4
-    std::cout << "BNE pc: " <<vector_hilos.hilos[actual].PC << std::endl;
+    //std::cout << "BNE pc: " <<vector_hilos.hilos[actual].PC << std::endl;
 }
 
 void Controlador::lr( int x1, int x2 )
@@ -377,6 +377,11 @@ void Controlador::ejecutar_hilillo()
         // para seguir con la siguiente inst. o siguiente hilo
         sem_wait( &senal_ejecutar_a_controlador );
     }
+    impresion_final();
+}
+
+void Controlador::impresion_final()
+{
     int i, j;
     std::cout << "cache de datos:"<<std::endl;
     for( int i = 0; i < 4; i++ )
@@ -440,7 +445,7 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
     }
     else // cache de datos
     {
-        puts("cargando datos");
+        //puts("cargando datos");
         int bloque_cache = buscar_en_cache_datos( num_bloque );
         if( bloque_cache == -1 ) // fallo de lectura de cache de datos
         {
@@ -514,9 +519,6 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso, int num_bloque_en
     int num_bloque = bloque->bloque;
     int conjunto = num_bloque % 2;
     int direc_reemplazo;
-    int direc_reemplazo_buff;
-    bool insertado = false;
-    bool estaba_vacia = false;
     BloqueDatos * bloq_datos = dynamic_cast< BloqueDatos * >( bloque );
     if( bloq_datos != NULL ) //carga de datos ya sea desde el buffer o bien desde memoria principal
     {  
@@ -532,54 +534,7 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso, int num_bloque_en
         }
         else // estado del bloque en cache MODIFICADO
         {
-            //encuentra bloque a utilizar y coloca candado en el
-            direc_reemplazo_buff = buffer_vic.buscar(cache.datos[direc_reemplazo].bloque);
-            if(direc_reemplazo_buff == -1) // -1 indica que el buscar no encontro el bloque
-            {
-                while(!insertado)
-                {
-                    if(!buffer_vic.llena())
-                    {
-                        insertado = true;
-                        if(buffer_vic.vacia())  
-                            //por cuestiones de sincronizacion se ocupa verificar si esta vacia antes de insertar al buffer
-                            //con el fin de despertar el hilo del buffer que estaria dormido
-                            estaba_vacia = true;
-                        counter = 0;
-                        while(counter < 4) //retraso de 4 ciclos para insertar en el buffer
-                        {
-                            pthread_barrier_wait(&barrera);
-                            counter++;
-                        }
-                        buffer_vic.insertar(cache.datos[direc_reemplazo]); //el bloque que va a ser reemplazado se guarda en el buffer
-                        if( estaba_vacia )
-                        {
-                            sem_post( &senal_hilo_a_buffer ); //despierta el hilo del buffer
-                            estaba_vacia = false;
-                        }
-                        cache.datos[direc_reemplazo] = *bloq_datos; //se modifica la cache
-                    }
-                    else //el buffer esta lleno, asi que espero a que tenga un espacio
-                    {
-                        pthread_barrier_wait(&barrera); 
-                    }
-                }
-            }
-            else
-            {
-                counter = 0;
-                //libremente se puede colocar el estado merging porque se tiene el candado de este bloque del buscar
-                buffer_vic.buffer[direc_reemplazo_buff].estado = MERGING; 
-                while(counter < 4) //retraso por hacer merging
-                {
-                    pthread_barrier_wait(&barrera);
-                    counter++;
-                }
-                buffer_vic.buffer[direc_reemplazo_buff] = cache.datos[direc_reemplazo]; //se realiza el merging
-                buffer_vic.buffer[direc_reemplazo_buff].estado = VALIDO; //el bloque vuelve a estar valido
-                pthread_mutex_unlock( &buffer_vic.candado[direc_reemplazo_buff] ); //se libera el candado del bloque
-                cache.datos[direc_reemplazo] = *bloq_datos; //se modifica la cache
-            }
+            reemplazo_bloq_modif(bloq_datos,direc_reemplazo);
         }
     }
     else// se copia a cache de instrucciones
@@ -603,22 +558,79 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso, int num_bloque_en
     return direc_reemplazo;
 }
 
+//Se encargo del reemplazo cuando el bloque de cache estaba en estado modificado
+void Controlador::reemplazo_bloq_modif(BloqueDatos * bloq_datos,int direc_reemplazo)
+{
+    int direc_reemplazo_buff;
+    bool insertado = false;
+    bool estaba_vacia = false;
+    int counter;
+    //encuentra bloque a utilizar y coloca candado en el
+    direc_reemplazo_buff = buffer_vic.buscar(cache.datos[direc_reemplazo].bloque);
+    if(direc_reemplazo_buff == -1) // -1 indica que el buscar no encontro el bloque
+    {
+        while(!insertado)
+        {
+            if(!buffer_vic.llena())
+            {
+                insertado = true;
+                if(buffer_vic.vacia())  
+                 //por cuestiones de sincronizacion se ocupa verificar si esta vacia antes de insertar al buffer
+                //con el fin de despertar el hilo del buffer que estaria dormido
+                    estaba_vacia = true;
+                counter = 0;
+                while(counter < 4) //retraso de 4 ciclos para insertar en el buffer
+                {
+                    pthread_barrier_wait(&barrera);
+                    counter++;
+                }
+                buffer_vic.insertar(cache.datos[direc_reemplazo]); //el bloque que va a ser reemplazado se guarda en el buffer
+                if( estaba_vacia )
+                {
+                    sem_post( &senal_hilo_a_buffer ); //despierta el hilo del buffer
+                    estaba_vacia = false;
+                }
+                cache.datos[direc_reemplazo] = *bloq_datos; //se modifica la cache
+            }
+            else //el buffer esta lleno, asi que espero a que tenga un espacio
+            {
+                pthread_barrier_wait(&barrera); 
+            }
+        }
+    }
+    else
+    {
+        counter = 0;
+        //libremente se puede colocar el estado merging porque se tiene el candado de este bloque del buscar
+        buffer_vic.buffer[direc_reemplazo_buff].estado = MERGING; 
+        while(counter < 4) //retraso por hacer merging
+        {
+            pthread_barrier_wait(&barrera);
+            counter++;
+        }
+        buffer_vic.buffer[direc_reemplazo_buff] = cache.datos[direc_reemplazo]; //se realiza el merging
+        buffer_vic.buffer[direc_reemplazo_buff].estado = VALIDO; //el bloque vuelve a estar valido
+        pthread_mutex_unlock( &buffer_vic.candado[direc_reemplazo_buff] ); //se libera el candado del bloque
+        cache.datos[direc_reemplazo] = *bloq_datos; //se modifica la cache
+    }
+}
+
 void Controlador::escribir( int direccion, int palabra )
 {
-    puts("escribo");
+    //puts("escribo");
     // se obtienen bloque y palabra a los que pertenece la dir. de memoria
     int num_bloque = floor(direccion/8);
     int num_palabra = floor(direccion/4);
     int bloque_cache = buscar_en_cache_datos( num_bloque );
     if( bloque_cache == -1 ) // fallo de escritura en cache
     {
-        puts("fallo de cache");
+        //puts("fallo de cache");
         // buscar en el buffer victima
         // aqui se duraria la espera por si el bloque esta siendo copiado a memoria
         int bloque_buffer = buffer_vic.buscar( num_bloque );
         if( bloque_buffer != -1 )
         {
-            puts("se sube de buffer");
+            //puts("se sube de buffer");
             // se realiza la copia
             // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
             buffer_vic.buffer[bloque_buffer].estado = SUBIENDO; // ? condicion de carrera
@@ -626,7 +638,7 @@ void Controlador::escribir( int direccion, int palabra )
         }
         else // el bloque no estaba en el buffer
         {
-            puts("se sube de memoria prin.");
+            //puts("se sube de memoria prin.");
             BloqueDatos bloque_datos;
             cargar_de_mem_principal( num_bloque, bloque_datos.palabra );
             bloque_datos.bloque = num_bloque;
