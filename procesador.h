@@ -63,6 +63,8 @@ class Controlador
     int reloj;
     int quantum;
     int inst_ejecutadas;
+    bool buffer_termino;
+    bool hillilo_termino;
     // bandera para indicar que terminaron las inst. de un hilillo
     bool fin_de_hilillo;
     // para indicar que se da cambio de reloj debido a que terminó una instr.
