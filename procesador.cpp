@@ -76,7 +76,6 @@ void Controlador::bne(int x1, int x2, int n)
     int actual = vector_hilos.puntero_actual;
     if(vector_hilos.hilos[actual].registros[x1] != vector_hilos.hilos[actual].registros[x2])
         vector_hilos.hilos[actual].PC += n * 4; // PC <- n * 4
-    std::cout << "BNE pc: " <<vector_hilos.hilos[actual].PC << std::endl;
 }
 
 void Controlador::lr( int x1, int x2 )
@@ -392,6 +391,11 @@ void Controlador::ejecutar_hilillo()
         // se espera señal para seguir con la siguiente inst. del mismo hilo u otro
         sem_wait( &senal_ejecutar_a_controlador );
     }
+    impresion_final();
+}
+
+void Controlador::impresion_final()
+{
     int i, j;
     std::cout << "cache de datos:"<<std::endl;
     for( int i = 0; i < 4; i++ )
@@ -471,9 +475,9 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
             int bloque_buffer = buffer_vic.buscar( num_bloque );
             if( bloque_buffer != -1 )
             {
-                // se realiza la copia desde buffer víctima
-                // se dan los 4 ciclos de retraso
-                //buffer_vic.buffer[bloque_buffer].estado = SUBIENDO; // condicion de carrera?
+                // se realiza la copia desde buffer víctima donde se dan los 4 ciclos de retraso
+                // libremente se puede colocar el estado subiendo porque se tiene el candado
+                buffer_vic.buffer[bloque_buffer].estado = SUBIENDO;
                 bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4, bloque_buffer );
             }
             else // el bloque no estaba en el buffer
@@ -544,9 +548,6 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso, int num_bloque_en
     int num_bloque = bloque->bloque;
     int conjunto = num_bloque % 2;
     int direc_reemplazo;
-    int direc_reemplazo_buff;
-    bool insertado = false;
-    bool estaba_vacia = false;
     BloqueDatos * bloq_datos = dynamic_cast< BloqueDatos * >( bloque );
     if( bloq_datos != NULL ) //carga de datos ya sea desde el buffer o bien desde memoria principal
     {  
@@ -562,54 +563,7 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso, int num_bloque_en
         }
         else // estado del bloque en cache MODIFICADO
         {
-            //encuentra bloque a utilizar y coloca candado en el
-            direc_reemplazo_buff = buffer_vic.buscar(cache.datos[direc_reemplazo].bloque);
-            if(direc_reemplazo_buff == -1) // -1 indica que el buscar no encontro el bloque
-            {
-                while(!insertado)
-                {
-                    if(!buffer_vic.llena())
-                    {
-                        insertado = true;
-                        if(buffer_vic.vacia())  
-                            //por cuestiones de sincronizacion se ocupa verificar si esta vacia antes de insertar al buffer
-                            //con el fin de despertar el hilo del buffer que estaria dormido
-                            estaba_vacia = true;
-                        counter = 0;
-                        while(counter < 4) //retraso de 4 ciclos para insertar en el buffer
-                        {
-                            pthread_barrier_wait(&barrera);
-                            counter++;
-                        }
-                        buffer_vic.insertar(cache.datos[direc_reemplazo]); //el bloque que va a ser reemplazado se guarda en el buffer
-                        if( estaba_vacia )
-                        {
-                            sem_post( &senal_hilo_a_buffer ); //despierta el hilo del buffer
-                            estaba_vacia = false;
-                        }
-                        cache.datos[direc_reemplazo] = *bloq_datos; //se modifica la cache
-                    }
-                    else //el buffer esta lleno, asi que espero a que tenga un espacio
-                    {
-                        pthread_barrier_wait(&barrera); 
-                    }
-                }
-            }
-            else
-            {
-                counter = 0;
-                //libremente se puede colocar el estado merging porque se tiene el candado de este bloque del buscar
-                buffer_vic.buffer[direc_reemplazo_buff].estado = MERGING; 
-                while(counter < 4) //retraso por hacer merging
-                {
-                    pthread_barrier_wait(&barrera);
-                    counter++;
-                }
-                buffer_vic.buffer[direc_reemplazo_buff] = cache.datos[direc_reemplazo]; //se realiza el merging
-                buffer_vic.buffer[direc_reemplazo_buff].estado = VALIDO; //el bloque vuelve a estar valido
-                pthread_mutex_unlock( &buffer_vic.candado[direc_reemplazo_buff] ); //se libera el candado del bloque
-                cache.datos[direc_reemplazo] = *bloq_datos; //se modifica la cache
-            }
+            reemplazo_bloq_modif(bloq_datos,direc_reemplazo);
         }
     }
     else// se copia a cache de instrucciones
@@ -633,6 +587,64 @@ int Controlador::copiar_a_cache( Bloque * bloque, int retraso, int num_bloque_en
     return direc_reemplazo;
 }
 
+//Se encargo del reemplazo cuando el bloque de cache estaba en estado modificado
+void Controlador::reemplazo_bloq_modif(BloqueDatos * bloq_datos,int direc_reemplazo)
+{
+    int direc_reemplazo_buff;
+    bool insertado = false;
+    bool estaba_vacia = false;
+    int counter;
+    //encuentra bloque a utilizar y coloca candado en el
+    direc_reemplazo_buff = buffer_vic.buscar(cache.datos[direc_reemplazo].bloque);
+    if(direc_reemplazo_buff == -1) // -1 indica que el buscar no encontro el bloque
+    {
+        while(!insertado)
+        {
+            if(!buffer_vic.llena())
+            {
+                insertado = true;
+                if(buffer_vic.vacia())  
+                 //por cuestiones de sincronizacion se ocupa verificar si esta vacia antes de insertar al buffer
+                //con el fin de despertar el hilo del buffer que estaria dormido
+                    estaba_vacia = true;
+                counter = 0;
+                while(counter < 4) //retraso de 4 ciclos para insertar en el buffer
+                {
+                    pthread_barrier_wait(&barrera);
+                    counter++;
+                }
+                buffer_vic.insertar(cache.datos[direc_reemplazo]); //el bloque que va a ser reemplazado se guarda en el buffer
+                if( estaba_vacia )
+                {
+                    sem_post( &senal_hilo_a_buffer ); //despierta el hilo del buffer
+                    estaba_vacia = false;
+                }
+                cache.datos[direc_reemplazo] = *bloq_datos; //se modifica la cache
+            }
+            else //el buffer esta lleno, asi que espero a que tenga un espacio
+            {
+                pthread_barrier_wait(&barrera); 
+            }
+        }
+    }
+    else
+    {
+        counter = 0;
+        //libremente se puede colocar el estado merging porque se tiene el candado de este bloque del buscar
+        buffer_vic.buffer[direc_reemplazo_buff].estado = MERGING; 
+        while(counter < 4) //retraso por hacer merging
+        {
+            pthread_barrier_wait(&barrera);
+            counter++;
+        }
+        buffer_vic.buffer[direc_reemplazo_buff] = cache.datos[direc_reemplazo]; //se realiza el merging
+        buffer_vic.buffer[direc_reemplazo_buff].estado = VALIDO; //el bloque vuelve a estar valido
+        pthread_mutex_unlock( &buffer_vic.candado[direc_reemplazo_buff] ); //se libera el candado del bloque
+        cache.datos[direc_reemplazo] = *bloq_datos; //se modifica la cache
+    }
+}
+
+    //puts("escribo");
 /*  EFECTO: se escribe a memoria la palabra que se pasa por parámetro,
             en este método se contemplan fallos de caché y lo que
             implican.
@@ -646,13 +658,15 @@ void Controlador::escribir( int direccion, int palabra )
     int bloque_cache = buscar_en_cache_datos( num_bloque );
     if( bloque_cache == -1 ) // fallo de escritura en cache
     {
+        // buscar en el buffer victima
         // se busca en el buffer victima
         // aqui se duraria la espera por si el bloque esta siendo copiado a memoria
         int bloque_buffer = buffer_vic.buscar( num_bloque );
         if( bloque_buffer != -1 )
         {
             // se copia desde buffer víctima
-            //buffer_vic.buffer[bloque_buffer].estado = SUBIENDO; // ? condicion de carrera
+            // libremente se puede colocar el estado subiendo porque se tiene el candado
+            buffer_vic.buffer[bloque_buffer].estado = SUBIENDO;
             bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4, bloque_buffer );
         }
         else // el bloque no estaba en el buffer
@@ -703,6 +717,24 @@ void Controlador::controlador()
     }
 }
 
+//Correspondiente al LRU
+int Controlador::menos_recien_usado( int conjunto ) 
+{
+    int menor = INT_MAX; //el entero con signo mas grande que se puede representar 
+    int direccion; //direccion que se va a reemplazar y sera retornado
+    for(int i = 0; i < 2; ++i)
+    {
+        if(cache.datos[(conjunto*2)+i].ultimo_uso < menor) 
+        {
+            //si se encuentra un ultimo uso menor se reemplaza la variable menor por el nuevo
+            menor = cache.datos[(conjunto*2)+i].ultimo_uso;
+            direccion = (conjunto*2)+i;
+        }
+    }
+    return direccion;
+}
+
+/*  EFECTO: manda a correr los 3 hilos necesarios para la simulación.*/
 void Controlador::init_hilos()
 {
     pthread_barrier_init(&barrera, NULL, 3);
@@ -711,6 +743,7 @@ void Controlador::init_hilos()
     hilos[2] = std::thread( hilo_buffer, this );
 }
 
+/*  EFECTO: se espera que finalicen los 3 hilos creados.*/
 void Controlador::fin_hilos()
 {
     hilos[0].join();
@@ -734,21 +767,4 @@ void *Controlador::hilo_controlador( Controlador * ptr )
 {
     ptr->controlador();
     return 0;
-}
-
-//Correspondiente al LRU
-int Controlador::menos_recien_usado( int conjunto ) 
-{
-    int menor = INT_MAX; //el entero con signo mas grande que se puede representar 
-    int direccion; //direccion que se va a reemplazar y sera retornado
-    for(int i = 0; i < 2; ++i)
-    {
-        if(cache.datos[(conjunto*2)+i].ultimo_uso < menor) 
-        {
-            //si se encuentra un ultimo uso menor se reemplaza la variable menor por el nuevo
-            menor = cache.datos[(conjunto*2)+i].ultimo_uso;
-            direccion = (conjunto*2)+i;
-        }
-    }
-    return direccion;
 }
