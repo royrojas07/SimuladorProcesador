@@ -644,32 +644,29 @@ void Controlador::escribir( int direccion, int palabra )
 
 void Controlador::controlador()
 {
-    int inst_ejecutadas_ant = 0;
-    bool cambio_de_contexto = false;
-    fin_de_hilillo = false;
+    bool cambio_de_contexto = false; //booleano que avisa si se hizo un cambio de contexto
+    fin_de_hilillo = false; //booleano que avisa si un hilillo ejecutó la instrucción FIN
     while(true){
-        aumentar_reloj();
-        if(inst_ejecutadas == quantum || fin_de_hilillo )
+        aumentar_reloj(); // en este metodo hay una barrera para aumentar el reloj cuando se ejecuta una instrucción
+        if(inst_ejecutadas == quantum  || fin_de_hilillo ) //si el hilillo actual ha ejecutado la cantidad de instrucciones correspondientes al quantum o ejecutó la instrucción FIN
         {
-            if(fin_de_hilillo){
-                // se guarda el hilillo antes de sacarlo de cola de ejecucion
-                vector_hilos.hilos[vector_hilos.puntero_actual].reloj_fin = reloj;
-                historial_hilos.push_back( vector_hilos.hilos[vector_hilos.puntero_actual] );
-                vector_hilos.hilos.erase(vector_hilos.hilos.begin()+vector_hilos.puntero_actual);
-                fin_de_hilillo = false;
+            if(fin_de_hilillo){ //si ejecutó la instrucción FIN
+                vector_hilos.hilos[vector_hilos.puntero_actual].reloj_fin = reloj; // se guarda el ciclo de reloj en el que terminó el hilillo
+                historial_hilos.push_back( vector_hilos.hilos[vector_hilos.puntero_actual] ); // se guarda el hilillo antes de sacarlo de cola de ejecucion
+                vector_hilos.hilos.erase(vector_hilos.hilos.begin()+vector_hilos.puntero_actual); // se saca el hilillo de la cola de hilillos
+                fin_de_hilillo = false; //se indica que el booleano ahora es falso para que no saque al siguiente hilo
             }
-            if( vector_hilos.hilos.size() != 0 )
+            if( vector_hilos.hilos.size() != 0 ) //si aún quedan hilillos en la cola
             {
-                cambio_contexto();
-                cambio_de_contexto = true;
+                cambio_contexto(); // se hace un cambio de contexto
+                cambio_de_contexto = true; //se pone el booleano que indica el cambio de contexto en true
             }
         }
-        //std::cout << "inst_ejecutads" << inst_ejecutadas << " _ant " << inst_ejecutadas_ant << std::endl;
-        if( se_ejecuto_ins || cambio_de_contexto )
+        if( se_ejecuto_ins || cambio_de_contexto ) //si se ejecutó una instrucción o se realizó un cambio de contexto
         {
-            sem_post( &senal_ejecutar_a_controlador );
-            se_ejecuto_ins = false;
-            cambio_de_contexto = false;
+            se_ejecuto_ins = false; //vuelve el booleano se_ejecuto_ins a falso para que se active hasta que se ejecute la próxima instrucción
+            cambio_de_contexto = false; //vuelve este booleano a falso para que no se de un cambio de contexto cuando no tiene que darse
+            sem_post( &senal_ejecutar_a_controlador ); //se manda la señal post al semáforo para que el hilo de ejecución siga con la siguiente instrucción
         }
     }
 }
