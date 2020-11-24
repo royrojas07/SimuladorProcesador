@@ -236,14 +236,20 @@ void Controlador::cargar_hilos()
     //pedir el quantum
     std::string input = ""; //variable que va a guardar el input del usuario
     int quantum = 0;
-    std::cout << "De cuantos ciclos de reloj va a ser el quantum? Escriba un número mayor o igual a 10." << std::endl;
+    std::cout << "De cuantos ciclos de reloj va a ser el quantum? Digite un número mayor o igual a 10." << std::endl;
     while(true)
     {
         getline(std::cin,input);
         std::stringstream stream(input);
-        if(stream >> quantum && quantum >= 10){ //si el input es un numero valido
+        bool es_numero = true;//boolean que se vuelve falso si el input no es un número
+        for(int i = 0; i < input.length(); i++){ //se revisan los caracteres del numero para ver si corresponden a digitos, sino se considera un input inválido
+            if((input.at(i) < 48 || input.at(i) > 57){
+                es_numero = false;
+                break;
+            }    
+        }
+        if(es_numero && (stream >> quantum) && (quantum >= 10)) //si el input es un numero valido
             break;
-        } 
         else
             std::cout << "Número inválido, por favor trate de nuevo." <<std::endl;
     }
@@ -255,12 +261,17 @@ void Controlador::cargar_hilos()
     std::cout << "Cuantos hilillos va a inicializar? Escriba un número." << std::endl; 
     while(true)
     {
-        getline(std::cin,input);
-        std::stringstream stream(input);
-        if(stream >> num_hilillos) // si el input es un numero valido
+        bool es_numero = true;//boolean que se vuelve falso si el input no es un número
+        for(int i = 0; i < input.length(); i++){ //se revisan los caracteres del numero para ver si corresponden a digitos, sino se considera un input inválido
+            if((input.at(i) < 48 || input.at(i) > 57){
+                es_numero = false;
+                break;
+            }    
+        }
+        if(es_numero && (stream >> num_hilillos)) //si el input es un numero valido
             break;
         else
-            std::cout << "Número inválido, por favor trate de nuevo." << std::endl; 
+            std::cout << "Número inválido, por favor trate de nuevo." <<std::endl;
     }
     
     std::cout << "Se van a inicializar " << num_hilillos << " hilillos." << std::endl; //print para confirmar la cantidad de hilillos
