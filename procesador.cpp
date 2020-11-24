@@ -38,7 +38,7 @@ void Controlador::mul( int x1, int x2, int x3 )
 {
     int actual = vector_hilos.puntero_actual;
     vector_hilos.hilos[actual].registros[x1] = vector_hilos.hilos[actual].registros[x2]
-            * vector_hilos.hilos[actual].registros[x3];
+            * vector_hilos.hilos[actual].registros[x3]; // x1 <- x2 * x3
 }
 
 void Controlador::div(int x1, int x2, int x3)
@@ -116,6 +116,7 @@ void Controlador::jalr( int x1, int x2, int n )
 
 void Controlador::FIN()
 {
+    // se activa bandera avisando que se terminó el hilillo
     fin_de_hilillo = true;
 }
 
@@ -358,23 +359,26 @@ void Controlador::init_estructuras()
 
 void Controlador::ejecutar_hilillo()
 {
-    // mientras queden hilos por ejecutar
+    // mientras hayan hilos por ejecutar
     while( vector_hilos.hilos.size() != 0 )
     {
-        // se treabaja con el hilo al que se apunta
+        // se trabaja con el hilo al que apunta vector_hilos.puntero_actual
         // se carga al IR la instrucción que apunta el PC
-        cargar( vector_hilos.hilos[vector_hilos.puntero_actual].PC, vector_hilos.hilos[vector_hilos.puntero_actual].IR, 'I' );
+        cargar( vector_hilos.hilos[vector_hilos.puntero_actual].PC,
+                vector_hilos.hilos[vector_hilos.puntero_actual].IR, 'I' );
         // se apunta a la siguiente direccion
         vector_hilos.hilos[vector_hilos.puntero_actual].PC += 4;
-        // se ejecuta la instrucción
-        asociar( vector_hilos.hilos[vector_hilos.puntero_actual].IR[0], vector_hilos.hilos[vector_hilos.puntero_actual].IR[1],
-                vector_hilos.hilos[vector_hilos.puntero_actual].IR[2], vector_hilos.hilos[vector_hilos.puntero_actual].IR[3] );
+        // se manda a ejecutar la instrucción
+        asociar( vector_hilos.hilos[vector_hilos.puntero_actual].IR[0],
+                vector_hilos.hilos[vector_hilos.puntero_actual].IR[1],
+                vector_hilos.hilos[vector_hilos.puntero_actual].IR[2],
+                vector_hilos.hilos[vector_hilos.puntero_actual].IR[3] );
         // se aumenta contador de instrucciones ejecutadas por este hilillo
         inst_ejecutadas++;
+        // se activa la bandera ("señal") de que se ejecutó una instrucción
         se_ejecuto_ins = true;
         pthread_barrier_wait(&barrera);
-        // aca tendria que haber sincronizacion con hilo controlador (semaforo)
-        // para seguir con la siguiente inst. o siguiente hilo
+        // se espera señal para seguir con la siguiente inst. del mismo hilo u otro
         sem_wait( &senal_ejecutar_a_controlador );
     }
     impresion_final();
@@ -416,24 +420,31 @@ void Controlador::impresion_final()
     }
 }
 
+/*  EFECTO: se carga desde memoria la palabra ubicada en la dirección
+            que se indica, en este método se busca la palabra en caché
+            y si es el caso se busca en el buffer víctima.
+    RECIBE: (direccion) direccion de memoria.
+            (palabra_retorno) puntero donde se retorna la palabra.
+            (memoria) parámetro opcional para indicar si la palabra
+            requerida es de instrucciones o de datos.*/
 void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
 {
     // se obtienen bloque y palabra a los que pertenece la dir. de memoria
     int num_bloque = floor(direccion/8);
     int num_palabra = floor(direccion/4);
-    //std::cout << num_bloque << " " << num_palabra << std::endl;
-    if( memoria == 'I' ) // cache de instrucciones
+    if( memoria == 'I' ) // se carga desde cache de instrucciones
     {
-        // mapeo directo
-        if( cache.instrucciones[num_bloque%8].bloque != num_bloque ) // fallo de lectura
+        // se busca en cache de instrucciones
+        if( cache.instrucciones[num_bloque%8].bloque != num_bloque ) // mapeo directo
         {
-            // se busca en la memoria principal
+            // se dio fallo de caché
+            // se procede a cargar de memoria principal
             BloqueInstruc bloque_instr;
             cargar_de_mem_principal( num_bloque, bloque_instr.palabra );
             bloque_instr.bloque = num_bloque;
             bloque_instr.estado = COMPARTIDO; // estado compartido
             // se copia en cache de instrucciones
-            copiar_a_cache( &bloque_instr, 24 ); // aqui se duran los 24 ciclos
+            copiar_a_cache( &bloque_instr, 24 ); // aqui se duran los 24 ciclos de retraso
         }
         // acierto de lectura o ya se subio el bloque
         // si el numero de palabra es par entonces corresponde a
@@ -443,29 +454,30 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
         for( int i = 0; i < 4; ++i )
             palabra_retorno[i] = cache.instrucciones[num_bloque%8].palabra[palabra_pos+i];
     }
-    else // cache de datos
+    else // se carga desde cache de datos
     {
-        //puts("cargando datos");
         int bloque_cache = buscar_en_cache_datos( num_bloque );
         if( bloque_cache == -1 ) // fallo de lectura de cache de datos
         {
-            // buscar en el buffer victima
+            // se busca en el buffer victima
             // aqui se duraria la espera por si el bloque esta siendo copiado a memoria
+            // y se obtiene el acceso exclusivo.
             int bloque_buffer = buffer_vic.buscar( num_bloque );
             if( bloque_buffer != -1 )
             {
-                // se realiza la copia
-                // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
-                buffer_vic.buffer[bloque_buffer].estado = SUBIENDO; // condicion de carrera?
-                bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4, bloque_buffer ); // ? aqui no hay problemas
+                // se realiza la copia desde buffer víctima
+                // se dan los 4 ciclos de retraso
+                //buffer_vic.buffer[bloque_buffer].estado = SUBIENDO; // condicion de carrera?
+                bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4, bloque_buffer );
             }
             else // el bloque no estaba en el buffer
             {
+                // se carga el bloque desde memoria principal
                 BloqueDatos bloque_datos;
                 cargar_de_mem_principal( num_bloque, bloque_datos.palabra );
                 bloque_datos.bloque = num_bloque;
-                bloque_datos.estado = COMPARTIDO; // estado compartido
-                //bloque_datos.ultimo_uso = reloj;
+                bloque_datos.estado = COMPARTIDO;
+                // se realiza la copia
                 bloque_cache = copiar_a_cache( &bloque_datos, 24 ); // aqui se durarian los 24 ciclos
             }
         }
@@ -475,11 +487,15 @@ void Controlador::cargar( int direccion, int * palabra_retorno, char memoria )
         int palabra_pos = (num_palabra % 2) ? 1:0;
         // se retorna la palabra
         *palabra_retorno = cache.datos[bloque_cache].palabra[palabra_pos];
-        // ? cuando se carga tambien se esta haciendo uso
+        // cuando se carga tambien se esta haciendo uso del bloque
         cache.datos[bloque_cache].ultimo_uso = reloj;
     }
 }
 
+/*  EFECTO: retorna las palabras de un bloque específico.
+    RECIBE: (int num_bloque) el número de bloque.
+            (int * bloque_retorno) puntero a entero donde se retorna
+            el bloque solicitado. */
 void Controlador::cargar_de_mem_principal( int num_bloque, int * bloque_retorno )
 {
     if( num_bloque >= 48 ) // mem. de intrucciones
@@ -495,6 +511,9 @@ void Controlador::cargar_de_mem_principal( int num_bloque, int * bloque_retorno 
     }
 }
 
+/*  RECIBE: (num_bloque) número de bloque que se busca.
+    RETORNA: número de bloque dentro de la caché donde se
+             encuentra el bloque que se busca.*/
 int Controlador::buscar_en_cache_datos( int num_bloque )
 {
     // asociativa por conjuntos de 2 vias
@@ -615,30 +634,33 @@ void Controlador::reemplazo_bloq_modif(BloqueDatos * bloq_datos,int direc_reempl
     }
 }
 
+    //puts("escribo");
+/*  EFECTO: se escribe a memoria la palabra que se pasa por parámetro,
+            en este método se contemplan fallos de caché y lo que
+            implican.
+    RECIBE: (direccion) direccion de memoria donde se quiere escribir.
+            (palabra) palabra que se escribe.*/
 void Controlador::escribir( int direccion, int palabra )
 {
-    //puts("escribo");
     // se obtienen bloque y palabra a los que pertenece la dir. de memoria
     int num_bloque = floor(direccion/8);
     int num_palabra = floor(direccion/4);
     int bloque_cache = buscar_en_cache_datos( num_bloque );
     if( bloque_cache == -1 ) // fallo de escritura en cache
     {
-        //puts("fallo de cache");
         // buscar en el buffer victima
+        // se busca en el buffer victima
         // aqui se duraria la espera por si el bloque esta siendo copiado a memoria
         int bloque_buffer = buffer_vic.buscar( num_bloque );
         if( bloque_buffer != -1 )
         {
-            //puts("se sube de buffer");
-            // se realiza la copia
-            // 4 ciclos de copiar de buffer a cache (OJO con los estados de los bloques)
-            buffer_vic.buffer[bloque_buffer].estado = SUBIENDO; // ? condicion de carrera
-            bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4, bloque_buffer ); // ? aqui no hay problemas
+            // se copia desde buffer víctima
+            //buffer_vic.buffer[bloque_buffer].estado = SUBIENDO; // ? condicion de carrera
+            bloque_cache = copiar_a_cache( &buffer_vic.buffer[bloque_buffer], 4, bloque_buffer );
         }
         else // el bloque no estaba en el buffer
         {
-            //puts("se sube de memoria prin.");
+            // se carga el bloque desde memoria principal
             BloqueDatos bloque_datos;
             cargar_de_mem_principal( num_bloque, bloque_datos.palabra );
             bloque_datos.bloque = num_bloque;
