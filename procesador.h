@@ -34,7 +34,7 @@ class Controlador
     void add(int x1, int x2, int x3); //fabian
     void addi(int x1, int x2, int n); //carlos
     void sub(int x1, int x2, int x3); //carlos
-    void mul( int x1, int x2, int x3 ); //roy
+    void mul( int x1, int x2, int x3 );
     void div(int x1, int x2, int x3); //carlos 
     void lw(int x1, int x2, int n); //carlos
     void sw(int x2, int x1, int n); //fabian
@@ -42,8 +42,8 @@ class Controlador
     void bne(int x1, int x2, int n); //carlos
     void lr( int x1, int x2 ); //roy
     void sc(int x2, int x1, int n); //fabian
-    void jal( int x1, int n ); //roy
-    void jalr( int x1, int x2, int n );//roy
+    void jal( int x1, int n );
+    void jalr( int x1, int x2, int n );
     void FIN(); // En este metodo se deberia restar la longitud del vector de hilos
     void cargar_hilos(); // este puede ser el metodo que lea de los txt y podria ir en el constructor de Controlador //Fabian
     void init_estructuras();// podria llamarse en el constructor igualmente //Carlos
@@ -69,7 +69,7 @@ class Controlador
     Round_robin vector_hilos;
     std::thread hilos[NUM_THREADS];
     pthread_barrier_t  barrera; 
-    sem_t senal_hilo_a_buffer; //? Donde esta el copiado de bloque de cache a buffer
+    sem_t senal_hilo_a_buffer;
     sem_t senal_ejecutar_a_controlador;
     std::vector<Hilo> historial_hilos;
 };
