@@ -235,13 +235,14 @@ void Controlador::cargar_hilos()
     //pedir el quantum
     std::string input = ""; //variable que va a guardar el input del usuario
     int quantum = 0;
-    std::cout << "De cuantos ciclos de reloj va a ser el quantum? Escriba un número." << std::endl;
+    std::cout << "De cuantos ciclos de reloj va a ser el quantum? Escriba un número mayor o igual a 10." << std::endl;
     while(true)
     {
         getline(std::cin,input);
         std::stringstream stream(input);
-        if(stream >> quantum) //si el input es un numero valido
+        if(stream >> quantum && quantum >= 10){ //si el input es un numero valido
             break;
+        } 
         else
             std::cout << "Número inválido, por favor trate de nuevo." <<std::endl;
     }
