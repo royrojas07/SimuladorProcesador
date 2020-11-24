@@ -52,9 +52,9 @@ void Controlador::lw(int x1, int x2, int n)
 {
     int actual = vector_hilos.puntero_actual;
     int direccion = vector_hilos.hilos[actual].registros[x2] + n;
-    int* palabra;
-    cargar(direccion,palabra);
-    vector_hilos.hilos[actual].registros[x1] = *palabra; // x1 <- M[x2 + n]
+    int palabra;
+    cargar(direccion, &palabra);
+    vector_hilos.hilos[actual].registros[x1] = palabra; // x1 <- M[x2 + n]
 }
 
 void Controlador::sw(int x2, int x1, int n)
