@@ -810,7 +810,6 @@ void Controlador::fin_hilos()
 {
     hilos[0].join();
     hilos[1].join();
-    hilos[2].join();
 }
 
 void *Controlador::hilo_buffer( Controlador * ptr )
