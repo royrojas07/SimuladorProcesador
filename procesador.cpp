@@ -188,7 +188,6 @@ void Controlador::asociar(int codigo, int x, int y, int z)
             del buffer victima. */
 void Controlador::buffer_victima()
 {
-    buffer_termino = false;
     while( vector_hilos.hilos.size() != 0 ) //Si no hay hilillos se termino el programa
     {
         if( !sem_trywait( &senal_hilo_a_buffer ) ) //hasta que le pongan algo en el buffer comienza a trabajar "dormido"
@@ -201,11 +200,6 @@ void Controlador::buffer_victima()
         else
             pthread_barrier_wait( &barrera ); //igualmente a pesar de estar dormido pasa por la barrera por sincronizacion
     }
-    buffer_termino = true;
-    if(!hillilo_termino)
-        pthread_barrier_wait( &barrera );
-    if(!controlador_termino)
-        pthread_barrier_wait(&barrera); 
 }
 
 
@@ -392,7 +386,6 @@ void Controlador::init_estructuras()
 
 void Controlador::ejecutar_hilillo()
 {
-    hillilo_termino = false;
     // mientras hayan hilos por ejecutar
     while( vector_hilos.hilos.size() != 0 )
     {
@@ -416,12 +409,6 @@ void Controlador::ejecutar_hilillo()
         sem_wait( &senal_ejecutar_a_controlador );
     }
     impresion_final();
-    while(!buffer_termino)
-        pthread_barrier_wait(&barrera); //para darle tiempo al buffer que termine y lograr su join
-    hillilo_termino = true;
-    pthread_barrier_wait(&barrera);
-    if(!controlador_termino)
-        pthread_barrier_wait(&barrera); 
 }
 
 /*  EFECTO: impresion al final del programa de la cache, memoria y registros*/
@@ -764,7 +751,6 @@ void Controlador::controlador()
 {
     bool cambio_de_contexto = false; //booleano que avisa si se hizo un cambio de contexto
     fin_de_hilillo = false; //booleano que avisa si un hilillo ejecutó la instrucción FIN
-    controlador_termino = false;
     while(vector_hilos.hilos.size() != 0){
         aumentar_reloj(); // en este metodo hay una barrera para aumentar el reloj cuando se ejecuta una instrucción
         if(inst_ejecutadas == quantum  || fin_de_hilillo ) //si el hilillo actual ha ejecutado la cantidad de instrucciones correspondientes al quantum o ejecutó la instrucción FIN
@@ -788,12 +774,6 @@ void Controlador::controlador()
             sem_post( &senal_ejecutar_a_controlador ); //se manda la señal post al semáforo para que el hilo de ejecución siga con la siguiente instrucción
         }
     }
-    while(!buffer_termino) 
-        pthread_barrier_wait(&barrera); //para darle tiempo al buffer que termine y lograr su join
-    controlador_termino = true;
-    pthread_barrier_wait(&barrera);
-    if(!hillilo_termino)
-        pthread_barrier_wait(&barrera); //para darle tiempo al buffer que termine y lograr su join
 }
 
 /*  EFECTO: Busca cual tiene el ultimo uso mas viejo.
