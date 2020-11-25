@@ -339,6 +339,7 @@ void Controlador::cargar_hilos()
         vector_hilos.hilos[i].reloj_inicio = 0;
         vector_hilos.hilos[i].RL = -1;
         vector_hilos.hilos[i].tiempo_en_ejecucion = 0;
+        vector_hilos.hilos[i].id = i;
         for( int j = 0; j < 32; ++j )
             vector_hilos.hilos[i].registros[j] = 0;
     }
@@ -421,36 +422,71 @@ void Controlador::ejecutar_hilillo()
 void Controlador::impresion_final()
 {
     int i, j;
-    std::cout << "cache de datos:"<<std::endl;
-    for( int i = 0; i < 4; i++ )
+    std::cout << "IMPRESIONES FINALES:" << std::endl;
+    std::cout << "Memoria compartida de datos:" << std::endl;
+    for(i = 0; i < 96; ++i)
+        std::cout << "[" << i*4 << "]" << ": " << memoria.datos[i] << ", ";
+    std::cout << std::endl << std::endl;
+
+    std::cout << "Cache de datos:"<<std::endl;
+    for( i = 0; i < 4; i++ )
     {
+        std::cout << "Bloque: " << i << std::endl;
         std::cout << cache.datos[i].palabra[0] << " ";
         std::cout << cache.datos[i].palabra[1] << std::endl;
+        std::cout << "Estado: ";
+        switch( cache.datos[i].estado )
+        {
+            case INVALIDO:
+                std::cout << "INVALIDO" << std::endl;
+                break;
+            case COMPARTIDO:
+                std::cout << "COMPARTIDO" << std::endl;
+                break;
+            case MODIFICADO:
+                std::cout << "MODIFICADO" << std::endl;
+                break;
+        }
     }
-    std::cout << std::endl;
-    std::cout << "memoria de datos:"<<std::endl;
-    for(i = 0; i < 96; ++i) 
-        std::cout << memoria.datos[i] << " "; //Init de memoria de datos
-    std::cout << std::endl;
-    std::cout << "memoria de inst:"<<std::endl;
-    for(i = 0; i < 640; ++i) 
-        std::cout << memoria.instrucciones[i] << " ";
-    std::cout << std::endl;
-    std::cout << "buffer victima: " << std::endl;
+    std::cout << std::endl << std::endl;
+    
+    std::cout << "Buffer victima: " << std::endl;
     for( int i = 0; i < 8; ++i )
     {
+        std::cout << "Bloque: " << i << std::endl;
         std::cout << buffer_vic.buffer[i].palabra[0]<< " ";
         std::cout << buffer_vic.buffer[i].palabra[1] <<std::endl;
+        std::cout << "Estado: ";
+        switch( buffer_vic.buffer[i].estado )
+        {
+            case VALIDO:
+                std::cout << "VALIDO" << std::endl;
+                break;
+            case LIBRE:
+                std::cout << "LIBRE" << std::endl;
+                break;
+            case SUBIENDO:
+                std::cout << "SUBIENDO" << std::endl;
+                break;
+            case MERGING:
+                std::cout << "MERGING" << std::endl;
+                break;
+            case ESCRIBIENDO:
+                std::cout << "ESCRIBIENDO" << std::endl;
+        }
     }
-    std::cout << "RELOJ: " << reloj<< std::endl;
-    std::cout << "HILILLOS: " << std::endl;
+    std::cout << std::endl;
+
+    std::cout << "Hilillos: " << std::endl;
     for( int i = 0; i < historial_hilos.size(); ++i )
     {
-        std::cout << "REGISTROS: " << std::endl;
+        std::cout << "Hilillo " << historial_hilos[i].id << std::endl;
+        std::cout << "Registros: " << std::endl;
         for( int j = 0; j < 32; ++j )
-            std::cout << historial_hilos[i].registros[j] << " ";
-        std::cout << "PC "<<historial_hilos[i].PC << std::endl;
-        std::cout << "TIEMPO EJECUCION "<<historial_hilos[i].tiempo_en_ejecucion << std::endl;
+            std::cout << "x" << j << ": " << historial_hilos[i].registros[j] << std::endl;
+        std::cout << "Ciclos tardados en ejecucion: " << historial_hilos[i].tiempo_en_ejecucion << std::endl;
+        std::cout << "Reloj cuando comenzo ejecucion: " << historial_hilos[i].reloj_inicio << std::endl;
+        std::cout << "Reloj cuando termino ejecucion: " << historial_hilos[i].reloj_fin << std::endl << std::endl;
     }
 }
 

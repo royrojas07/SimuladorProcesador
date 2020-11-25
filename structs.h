@@ -20,6 +20,7 @@ struct Hilo
     int reloj_inicio; //valor del reloj cuando empezó ejecución el hilo
     int reloj_fin; //valor del reloj cuando terminó ejecución el hilo
     int tiempo_en_ejecucion;
+    int id;
 };
 
 struct Bloque
