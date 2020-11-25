@@ -204,6 +204,8 @@ void Controlador::buffer_victima()
     buffer_termino = true;
     if(!hillilo_termino)
         pthread_barrier_wait( &barrera );
+    if(!controlador_termino)
+        pthread_barrier_wait(&barrera); 
 }
 
 
@@ -416,6 +418,9 @@ void Controlador::ejecutar_hilillo()
     while(!buffer_termino)
         pthread_barrier_wait(&barrera); //para darle tiempo al buffer que termine y lograr su join
     hillilo_termino = true;
+    pthread_barrier_wait(&barrera);
+    if(!controlador_termino)
+        pthread_barrier_wait(&barrera); 
 }
 
 /*  EFECTO: impresion al final del programa de la cache, memoria y registros*/
@@ -757,6 +762,7 @@ void Controlador::controlador()
 {
     bool cambio_de_contexto = false; //booleano que avisa si se hizo un cambio de contexto
     fin_de_hilillo = false; //booleano que avisa si un hilillo ejecutó la instrucción FIN
+    controlador_termino = false;
     while(vector_hilos.hilos.size() != 0){
         aumentar_reloj(); // en este metodo hay una barrera para aumentar el reloj cuando se ejecuta una instrucción
         if(inst_ejecutadas == quantum  || fin_de_hilillo ) //si el hilillo actual ha ejecutado la cantidad de instrucciones correspondientes al quantum o ejecutó la instrucción FIN
@@ -782,6 +788,8 @@ void Controlador::controlador()
     }
     while(!buffer_termino) 
         pthread_barrier_wait(&barrera); //para darle tiempo al buffer que termine y lograr su join
+    controlador_termino = true;
+    pthread_barrier_wait(&barrera);
     if(!hillilo_termino)
         pthread_barrier_wait(&barrera); //para darle tiempo al buffer que termine y lograr su join
 }
