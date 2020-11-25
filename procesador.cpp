@@ -244,7 +244,8 @@ void Controlador::cambio_contexto()
     vector_hilos.puntero_actual = (vector_hilos.puntero_actual+1) % vector_hilos.hilos.size(); //cual sera el siguiente hilo utilizando propiedades de vector circular
     inst_ejecutadas = 0; //reinicia las instrucciones ejecutadas porque esta variable es la que se compara con el quantum
 }
-
+/* EFECTO: conseguir el valor del quantum y la cantidad de hilillos a partir de lo que indique el usuario,
+ inicializar los hilos a partir de archivos que indica el usuario*/
 void Controlador::cargar_hilos()
 {
     //pedir el quantum
@@ -757,7 +758,8 @@ void Controlador::escribir( int direccion, int palabra )
     cache.datos[bloque_cache].estado = MODIFICADO;
     cache.datos[bloque_cache].ultimo_uso = reloj;
 }
-
+/*EFECTO: Cambiar de contexto cuando se acabe el quantum de un hilo o se acaben las instrucciones que pueda ejecutar un hilillo,
+ mandar una señal para que se puedan seguir ejecutando instrucciones luego de chequear si se necesita un cambio de contexto*/
 void Controlador::controlador()
 {
     bool cambio_de_contexto = false; //booleano que avisa si se hizo un cambio de contexto
